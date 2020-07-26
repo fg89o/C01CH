@@ -33,12 +33,12 @@
 void initEEPROM()
 {
   
-  Serial.printf("Iniciando EEPROM con %d bytes\n", EEPROM_SIZE);
+  Serial.printf("Iniciando EEPROM con %d bytes\n", EEPROM_SIZE+EEPROM_INA_SIZE);
   bool init = false;
   int err_count = 0;
   while(err_count<EEPROM_INIT_RETRIES && !init)
   {
-      init = EEPROM.begin(EEPROM_SIZE);
+      init = EEPROM.begin(EEPROM_SIZE+EEPROM_INA_SIZE);
       if (!init)
       {
           err_count++;

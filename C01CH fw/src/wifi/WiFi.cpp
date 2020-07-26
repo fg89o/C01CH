@@ -60,12 +60,13 @@ void DomDomWifiClass::connect()
         for(int i = 0; i < WIFI_NUM_RETRIES; i++)
         {
             connectSTAWifi();
-            int delay_ms = 0;
-            while(WiFi.status() != WL_CONNECTED && delay_ms < WIFI_CONNECTION_LATENCY)
+            int prev_ms = millis();
+            while(WiFi.status() != WL_CONNECTED && millis() - prev_ms < WIFI_CONNECTION_LATENCY)
             {
-                Serial.print('_');
-                delay_ms += 500;
-                delay(delay_ms);
+                if ((millis() - prev_ms) % 1000 == 0)
+                {
+                    Serial.print('_');
+                }
             }
             
             _connected = WiFi.status() == WL_CONNECTED;

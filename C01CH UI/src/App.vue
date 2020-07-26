@@ -51,7 +51,7 @@
               <v-icon>mdi-github</v-icon>
             </v-btn>
 
-            <v-btn icon target="_blank" href="https://acuariofiliamadrid.org/Thread-%C4%91om-%C4%91%C3%B3m-Controlador-de-pantalla">
+            <v-btn icon target="_blank" href="https://acuariofiliamadrid.org/Thread-DIY-controlador-1-Canal?pid=530025#pid530025">
               <v-icon>mdi-help-circle</v-icon>
             </v-btn>
 

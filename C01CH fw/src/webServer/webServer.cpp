@@ -334,7 +334,7 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     float amps = DomDomChannel.getCurrent_mA();
 
     String str_volts = String(volts,2);
-    String str_amps = String(amps,2);
+    String str_amps = String(amps,3);
 
     Serial.printf("Volts: %s\r\n", str_volts.c_str());
     Serial.printf("Amps: %s\r\n", str_amps.c_str());

@@ -30,16 +30,16 @@
 //===========================================================================
 
 // Define la red wifi a la que intetara conectase por defecto
-#define WIFI_STA_SSID_NAME "NOMBRE_DE_TU_WIFI"
+#define WIFI_STA_SSID_NAME "MIWIFI_2G_QQPJ"
 
 // Define el password de la red wifi por defecto
-#define WIFI_STA_PASSWORD "PASSWORD_DE_TU_WIFI"
+#define WIFI_STA_PASSWORD "aFG6nxrr"
 
 // Numero de intentos para conectar el wifi
 #define WIFI_NUM_RETRIES 3
 
 // Tiempo de espera entre intentos
-#define WIFI_CONNECTION_LATENCY 10000
+#define WIFI_CONNECTION_LATENCY 5000
 
 // Nombre del AP que se creara para conectarse al equipo (32 digitos max.)
 #define WIFI_AP_SSID_NAME "C01CH"
@@ -94,10 +94,11 @@
 //============================ EEPROM SECTION ===============================
 //===========================================================================
 
-#define EEPROM_SIZE                             512 + EEPROM_NTP_TIMEZONEPOSIX_ADDRESS + EEPROM_NTP_TIMEZONEPOSIX_LENGTH
+#define EEPROM_SIZE                             EEPROM_NTP_TIMEZONEPOSIX_ADDRESS + EEPROM_NTP_TIMEZONEPOSIX_LENGTH
 #define EEPROM_INIT_RETRIES                     10
+#define EEPROM_INA_SIZE                         512
 
-#define EEPROM_STA_SSID_NAME_ADDRESS            512 + 4
+#define EEPROM_STA_SSID_NAME_ADDRESS            4
 #define EEPROM_SSID_NAME_LENGTH                 32
 #define EEPROM_STA_PASSWORD_ADDRESS             EEPROM_STA_SSID_NAME_ADDRESS + EEPROM_SSID_NAME_LENGTH
 #define EEPROM_STA_PASSWORD_LENGTH              64

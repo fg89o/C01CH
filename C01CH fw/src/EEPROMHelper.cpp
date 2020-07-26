@@ -24,7 +24,7 @@
 
 void EEPROMInit()
 {
-    EEPROM.write(513,1);
+    EEPROM.write(1,1);
 
     /** DIRECCION EEPROM DEL WIFI */
     EEPROM.writeString(EEPROM_STA_SSID_NAME_ADDRESS, WIFI_STA_SSID_NAME);
@@ -80,7 +80,7 @@ void EEPROMInit()
 
 void EEPROMCheck()
 {
-    if (EEPROM.read(513) != 1)
+    if (EEPROM.read(1) != 1)
     {
         Serial.print("Detectado primer arranque. Inicializando EEPROM\n");
         EEPROMInit();

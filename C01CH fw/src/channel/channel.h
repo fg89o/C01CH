@@ -24,7 +24,7 @@
 
 #include <Arduino.h>
 #include "channelLed.h"
-#include "../INA/INA.h"
+#include "../../lib/INA/INA.h"
 
 /**
  * Representa un canal.

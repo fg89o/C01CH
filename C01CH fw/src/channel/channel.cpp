@@ -48,7 +48,7 @@ bool DomDomChannelClass::begin()
     }
 
     // configure LED PWM functionalitites
-    ledcSetup(_channel_num, 20000, _resolution);
+    ledcSetup(_channel_num, 5000, _resolution);
     
     // attach the channel to be controlled
     ledcAttachPin(pwm_pin, _channel_num);
@@ -56,7 +56,8 @@ bool DomDomChannelClass::begin()
     // Iniciamos el INA
     // currentSensor.begin();
 
-    currentSensor.EEPROM_Offset = EEPROM_SIZE - 512;
+    currentSensor._EEPROM_offset = EEPROM_SIZE;
+    currentSensor._EEPROM_size = EEPROM_INA_SIZE;
     if (!currentSensor.begin(MAXIMUM_AMPS, SHUNT_MICRO_OHM))
     {
         Serial.printf("Error! INA no encontrado. El canal %d se deshabilitara.\r\n", _channel_num);
@@ -102,37 +103,65 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
     int channel = CHANNEL_CURRENT_PIN;
 
+    float v_histeresis = 0.10;
+    float mA_histeresis = 5;
+
+    uint16_t loop_interval = 100;
     unsigned long prev_millis_info = 0;
+    unsigned long loop_millis = loop_interval * -1;
+
     dacWrite(channel, curr_pwm);
 
     while(DomDomChannel.started())
     {
-
-        float volts = DomDomChannel.getBusVoltage_V();
-        float amps = DomDomChannel.getCurrent_mA();
-
-        if ((amps > DomDomChannel.maximum_mA || volts > DomDomChannel.maximum_voltage) && curr_pwm < max_dac_pwm)
+        if (millis() - loop_millis > loop_interval)
         {
-            dacWrite(channel, ++curr_pwm);
+            loop_millis = millis();
+
+            float volts = DomDomChannel.getBusVoltage_V();
+            float amps = DomDomChannel.getCurrent_mA();
+
+            bool voltsInRange = (volts < (DomDomChannel.maximum_voltage + v_histeresis) && volts > (DomDomChannel.maximum_voltage-v_histeresis));
+            bool mAInRange = (amps < (DomDomChannel.maximum_mA + mA_histeresis) && amps > (DomDomChannel.maximum_mA-mA_histeresis));
+
+            bool skip = false;
+
+            if (voltsInRange && amps < DomDomChannel.maximum_mA + mA_histeresis)
+            {
+                skip = true;
+            }
+            else if (mAInRange && volts < DomDomChannel.maximum_voltage + v_histeresis )
+            {
+                skip = true;
+            }
+
+            if (!skip)
+            {
+                if ((amps > DomDomChannel.maximum_mA || volts > DomDomChannel.maximum_voltage) && curr_pwm < max_dac_pwm)
+                {
+                    dacWrite(channel, ++curr_pwm);
+                }
+
+                if ((amps < DomDomChannel.maximum_mA && volts < DomDomChannel.maximum_voltage) &&  curr_pwm > min_dac_pwm)
+                {
+                    dacWrite(channel, --curr_pwm);
+                }
+
+                DomDomChannel.curr_dac_pwm = curr_pwm;
+            }
+
+            if (millis() - prev_millis_info > CHANNEL_BUS_REFRESH_INTERVAL )
+            {
+                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.maximum_voltage);
+                Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.maximum_mA);
+                Serial.printf("Bus voltage: %fV\r\n", volts);
+                Serial.printf("Bus miliamps: %fmA\r\n", amps);
+                Serial.printf("DAC: %d\r\n", curr_pwm);
+                prev_millis_info = millis();
+            }
+            
         }
-
-        if ((amps < DomDomChannel.maximum_mA && volts < DomDomChannel.maximum_voltage) &&  curr_pwm > min_dac_pwm)
-        {
-            dacWrite(channel, --curr_pwm);
-        }
-
-        DomDomChannel.curr_dac_pwm = curr_pwm;
-
-        if (millis() - prev_millis_info > CHANNEL_BUS_REFRESH_INTERVAL )
-        {
-            Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.maximum_voltage);
-            Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.maximum_mA);
-            Serial.printf("Bus voltage: %fV\r\n", volts);
-            Serial.printf("Bus miliamps: %fmA\r\n", amps);
-            Serial.printf("DAC: %d\r\n", curr_pwm);
-            prev_millis_info = millis();
-        }
-
+        
     }
 
     vTaskDelete(NULL);
@@ -217,13 +246,13 @@ bool DomDomChannelClass::started()
 const float DomDomChannelClass::getBusVoltage_V()
 {
     xSemaphoreTake( xMutex, portMAX_DELAY );
-    unsigned long prev_millis = millis();
-    uint32_t interval = INA_AVERAGING * 8.244;
+    // unsigned long prev_millis = millis();
+    // uint32_t interval = INA_AVERAGING * 8.244;
     float v = currentSensor.getBusMilliVolts(0) / 1000.0;
-    while (millis() - prev_millis < interval )
-    {
-        delay(1);
-    }
+    // while (millis() - prev_millis < interval )
+    // {
+    //     delay(1);
+    // }
     xSemaphoreGive( xMutex );
     return v; 
 }
@@ -231,13 +260,13 @@ const float DomDomChannelClass::getBusVoltage_V()
 const float DomDomChannelClass::getCurrent_mA()
 {
     xSemaphoreTake( xMutex, portMAX_DELAY );
-    unsigned long prev_millis = millis();
-    uint32_t interval = INA_AVERAGING * 8.244;
+    // unsigned long prev_millis = millis();
+    // uint32_t interval = INA_AVERAGING * 8.244;
     float mA = currentSensor.getBusMicroAmps(0) / 1000.0;
-     while (millis() - prev_millis < interval )
-    {
-        delay(1);
-    }
+    // while (millis() - prev_millis < interval )
+    // {
+    //     delay(1);
+    // }
     xSemaphoreGive( xMutex );
     return mA; 
 }
