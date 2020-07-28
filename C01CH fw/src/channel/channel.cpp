@@ -22,9 +22,10 @@
 #include <EEPROM.h>
 #include "configuration.h"
 
-const uint32_t SHUNT_MICRO_OHM  = 100000;  ///< Shunt resistance in Micro-Ohm, e.g. 100000 is 0.1 Ohm
-const uint16_t MAXIMUM_AMPS     = 3;       ///< Max expected amps, values are 1 - clamped to max 1022
-const uint16_t INA_AVERAGING    = 5;
+const uint32_t SHUNT_MICRO_OHM      = 100000;  ///< Shunt resistance in Micro-Ohm, e.g. 100000 is 0.1 Ohm
+const uint16_t MAXIMUM_AMPS         = 3;       ///< Max expected amps, values are 1 - clamped to max 1022
+const uint16_t INA_AVERAGING        = 32;
+const uint16_t INA_CONVERSION_TIME  = 8244;
 
 DomDomChannelClass::DomDomChannelClass()
 {
@@ -54,8 +55,6 @@ bool DomDomChannelClass::begin()
     ledcAttachPin(pwm_pin, _channel_num);
 
     // Iniciamos el INA
-    // currentSensor.begin();
-
     currentSensor._EEPROM_offset = EEPROM_SIZE;
     currentSensor._EEPROM_size = EEPROM_INA_SIZE;
     if (!currentSensor.begin(MAXIMUM_AMPS, SHUNT_MICRO_OHM))
@@ -63,11 +62,11 @@ bool DomDomChannelClass::begin()
         Serial.printf("Error! INA no encontrado. El canal %d se deshabilitara.\r\n", _channel_num);
         return false;
     }
-
-    currentSensor.setBusConversion(8500);             // Maximum conversion time 8.244ms
-    currentSensor.setShuntConversion(8500);           // Maximum conversion time 8.244ms
-    currentSensor.setAveraging(INA_AVERAGING);        // Average each reading n-times
-    currentSensor.setMode(INA_MODE_CONTINUOUS_BOTH);  // Bus/shunt measured continuously
+    
+    currentSensor.setAveraging(INA_AVERAGING,0);                          // Average each reading n-times
+    currentSensor.setBusConversion(INA_CONVERSION_TIME,0);                // Maximum conversion time 8.244ms
+    currentSensor.setShuntConversion(INA_CONVERSION_TIME,0);              // Maximum conversion time 8.244ms
+    currentSensor.setMode(INA_MODE_CONTINUOUS_BOTH,0);                    // Bus/shunt measured continuously
 
     _iniciado = true;
 
@@ -106,18 +105,15 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
     float v_histeresis = 0.10;
     float mA_histeresis = 5;
 
-    uint16_t loop_interval = 100;
     unsigned long prev_millis_info = 0;
-    unsigned long loop_millis = loop_interval * -1;
 
     dacWrite(channel, curr_pwm);
 
     while(DomDomChannel.started())
     {
-        if (millis() - loop_millis > loop_interval)
+        if (DomDomChannel.currentSensor.conversionFinished(0))
         {
-            loop_millis = millis();
-
+            DomDomChannel.waitForConversion();
             float volts = DomDomChannel.getBusVoltage_V();
             float amps = DomDomChannel.getCurrent_mA();
 
@@ -159,9 +155,7 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
                 Serial.printf("DAC: %d\r\n", curr_pwm);
                 prev_millis_info = millis();
             }
-            
         }
-        
     }
 
     vTaskDelete(NULL);
@@ -243,11 +237,16 @@ bool DomDomChannelClass::started()
     return _iniciado;
 }
 
-const float DomDomChannelClass::getBusVoltage_V()
+void DomDomChannelClass::waitForConversion()
+{
+    currentSensor.waitForConversion(0);
+}
+
+float DomDomChannelClass::getBusVoltage_V()
 {
     xSemaphoreTake( xMutex, portMAX_DELAY );
     // unsigned long prev_millis = millis();
-    // uint32_t interval = INA_AVERAGING * 8.244;
+    // uint32_t interval = INA_AVERAGING * INA_CONVERSION_TIME / 1000;
     float v = currentSensor.getBusMilliVolts(0) / 1000.0;
     // while (millis() - prev_millis < interval )
     // {
@@ -257,11 +256,11 @@ const float DomDomChannelClass::getBusVoltage_V()
     return v; 
 }
 
-const float DomDomChannelClass::getCurrent_mA()
+float DomDomChannelClass::getCurrent_mA()
 {
     xSemaphoreTake( xMutex, portMAX_DELAY );
     // unsigned long prev_millis = millis();
-    // uint32_t interval = INA_AVERAGING * 8.244;
+    // uint32_t interval = INA_AVERAGING * INA_CONVERSION_TIME / 1000;
     float mA = currentSensor.getBusMicroAmps(0) / 1000.0;
     // while (millis() - prev_millis < interval )
     // {

@@ -41,7 +41,7 @@
           dismissible
           v-model="error"
       >
-      Error al procesar el reinicio. No se recibió respuesta.
+      Error al procesar la actualización.
       </v-alert>
       <div class="d-flex flex-column justify-center">
         <div class="d-block">
@@ -116,17 +116,17 @@ export default {
 
             self.progress_value = 0;
             console.log('success!')
+
+            window.setTimeout(function(){
+                // Move to a new location or you can do something else
+                window.location = "/";
+            }, 5000);
           },
           error: function (/*a, b, c*/) 
           { 
             self.inprogress = false;
             self.error = true;
             self.progress_value = 0;
-
-            window.setTimeout(function(){
-                // Move to a new location or you can do something else
-                window.location = "/";
-            }, 5000);
           }
         });
       }

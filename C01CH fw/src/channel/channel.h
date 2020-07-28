@@ -153,11 +153,15 @@ class DomDomChannelClass
         /**
          * Devuelve el voltaje actual en el bus
          */
-        const float getBusVoltage_V();
+        float getBusVoltage_V();
         /**
          * Devuelve el consumo actual del bus en mA
          */
-        const float getCurrent_mA();
+        float getCurrent_mA();
+        /**
+         * Espera a que finalice a conversion del Bus
+         */
+        void waitForConversion(); 
         /**
          * Configura el canal.
          */
