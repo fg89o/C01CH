@@ -7,7 +7,7 @@
 #define DEBUG
 
 // Datos del proyecto
-#define PROJECT_VER     1.0
+#define PROJECT_VER     1.1
 #define PROJECT_MODEL   "C01CH"
 
 //===========================================================================
@@ -63,18 +63,24 @@
 #define MDNS_ENABLED 1
 
 // Nombre mDNS para localizar el equipo
-#define MDNS_HOSTNAME "C01CH"
+#define MDNS_HOSTNAME "C01CHDEV"
 
 //===========================================================================
 //============================ CHANNELS SECTION =============================
 //===========================================================================
 
-#define CHANNEL_PWM_PIN                 17
+#define CHANNEL_SIZE                    1
 #define CHANNEL_RESOLUTION              8
 #define CHANNEL_MAX_LEDS_CONFIG         10
-#define CHANNEL_CURRENT_PIN             25
-#define CHANNEL_CURRENT_MEASURE_NUM     5
+#define CHANNEL_CURRENT_PIN             { 25 }
 #define CHANNEL_BUS_REFRESH_INTERVAL    10000
+
+//===========================================================================
+//============================ FAN SECTION =============================
+//===========================================================================
+#define FAN_PWM_PIN                     17
+#define FAN_PWM_RESOLUTION              10
+#define FAN_PWM_CHANNEL                 12
 
 //===========================================================================
 //===================== RTC Y  NTP SECTION ==================================
@@ -94,7 +100,7 @@
 //============================ EEPROM SECTION ===============================
 //===========================================================================
 
-#define EEPROM_SIZE                             EEPROM_NTP_TIMEZONEPOSIX_ADDRESS + EEPROM_NTP_TIMEZONEPOSIX_LENGTH
+#define EEPROM_SIZE                             EEPROM_FAN_ENABLED_ADDRESS
 #define EEPROM_INIT_RETRIES                     10
 #define EEPROM_INA_SIZE                         512
 
@@ -126,4 +132,5 @@
 #define EEPROM_NTP_TIMEZONEPOSIX_ADDRESS        EEPROM_NTP_TIMEZONENAME_ADDRESS + EEPROM_NTP_TIMEZONENAME_LENGTH
 #define EEPROM_NTP_TIMEZONEPOSIX_LENGTH         32
 
+#define EEPROM_FAN_ENABLED_ADDRESS              EEPROM_NTP_TIMEZONEPOSIX_ADDRESS + EEPROM_NTP_TIMEZONEPOSIX_LENGTH
 #endif /* GLOBAL_CONFIGURACION_h */

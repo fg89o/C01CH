@@ -87,6 +87,7 @@ export default {
             { title: 'Inicio', icon: 'mdi-view-dashboard', link: '/' },
             { title: 'Programación', icon: 'mdi-clock-outline', link: '/programacion' },
             { title: 'Manual', icon: 'mdi-tune', link: '/manual' },
+            { title: 'Ventilador', icon: 'mdi-fan', link: '/fan' }
           ]
         },
         {

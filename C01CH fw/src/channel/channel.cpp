@@ -27,52 +27,67 @@ const uint16_t MAXIMUM_AMPS         = 3;       ///< Max expected amps, values ar
 const uint16_t INA_AVERAGING        = 32;
 const uint16_t INA_CONVERSION_TIME  = 8244;
 
-DomDomChannelClass::DomDomChannelClass()
+DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
 {
     _channel_num = 0;
     _enabled = true;
     _iniciado = false;
 
-    maximum_mA = 0;
-    maximum_voltage = 0;
+    maximum_mA = 100.0f;
+    minimum_mA = 0.0f;
+    target_V = 0.0f;
 
-    xMutex = xSemaphoreCreateMutex();
-
-    setPWMResolution(12);
+    INA_device_index = -1;
+    _INA_address = INA_address;
 }
 
 bool DomDomChannelClass::begin()
 {
-    if (pwm_pin == 0 || !_enabled)
+    if (!_enabled)
     {
         return false;
     }
-
-    // configure LED PWM functionalitites
-    ledcSetup(_channel_num, 5000, _resolution);
-    
-    // attach the channel to be controlled
-    ledcAttachPin(pwm_pin, _channel_num);
 
     // Iniciamos el INA
-    currentSensor._EEPROM_offset = EEPROM_SIZE;
-    currentSensor._EEPROM_size = EEPROM_INA_SIZE;
-    if (!currentSensor.begin(MAXIMUM_AMPS, SHUNT_MICRO_OHM))
+    INA._EEPROM_offset = EEPROM_SIZE;
+    INA._EEPROM_size = EEPROM_INA_SIZE;
+    uint8_t devicesFound = 0;
+    uint8_t max_retries = 3;
+    uint8_t retry = 0;
+
+    do
     {
-        Serial.printf("Error! INA no encontrado. El canal %d se deshabilitara.\r\n", _channel_num);
+        devicesFound = INA.begin(MAXIMUM_AMPS, SHUNT_MICRO_OHM);
+        for (uint8_t i = 0; i < devicesFound; i++)  // Loop through all devices
+        {
+            if (INA.getDeviceAddress(i) == _INA_address )
+            {
+                Serial.print("[CHANNEL %d] Buscando INA . . . OK!\r\n");
+                INA_device_index = i;
+            }
+        } 
+
+        if (INA_device_index == -1)
+        {
+            retry++;
+            delay(500);
+        }
+
+    }while (INA_device_index == -1 && retry < max_retries);
+
+    if (INA_device_index == -1)
+    {
+        Serial.print("[CHANNEL %d] Error! INA no encontrado.\r\n");
+        _enabled = false;
         return false;
     }
-    
-    currentSensor.setAveraging(INA_AVERAGING,0);                          // Average each reading n-times
-    currentSensor.setBusConversion(INA_CONVERSION_TIME,0);                // Maximum conversion time 8.244ms
-    currentSensor.setShuntConversion(INA_CONVERSION_TIME,0);              // Maximum conversion time 8.244ms
-    currentSensor.setMode(INA_MODE_CONTINUOUS_BOTH,0);                    // Bus/shunt measured continuously
+
+    INA.setAveraging(INA_AVERAGING, INA_device_index);                         // Average each reading n-times
+    INA.setBusConversion(INA_CONVERSION_TIME,INA_device_index);                // Maximum conversion time 8.244ms
+    INA.setShuntConversion(INA_CONVERSION_TIME,INA_device_index);              // Maximum conversion time 8.244ms
+    INA.setMode(INA_MODE_CONTINUOUS_BOTH,INA_device_index);                    // Bus/shunt measured continuously
 
     _iniciado = true;
-
-    // init PWM
-    ledcWrite(_channel_num, _min_pwm); 
-
     xTaskCreate(
         this->limitCurrentTask, /* Task function. */
         "Current_Task",         /* String with name of task. */
@@ -87,9 +102,7 @@ bool DomDomChannelClass::begin()
 
 bool DomDomChannelClass::end()
 {
-    ledcDetachPin(pwm_pin);
     _iniciado = false;
-
     return true;
 }
 
@@ -100,7 +113,8 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
     uint8_t min_dac_pwm = 0;
     uint8_t curr_pwm = max_dac_pwm;
 
-    int channel = CHANNEL_CURRENT_PIN;
+    int channels_pin[CHANNEL_SIZE] = CHANNEL_CURRENT_PIN;
+    int channel = channels_pin[DomDomChannel.getNum()];
 
     float v_histeresis = 0.10;
     float mA_histeresis = 5;
@@ -111,14 +125,16 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
     while(DomDomChannel.started())
     {
-        if (DomDomChannel.currentSensor.conversionFinished(0))
+        if (DomDomChannel.INA.conversionFinished(0))
         {
-            DomDomChannel.waitForConversion();
-            float volts = DomDomChannel.getBusVoltage_V();
-            float amps = DomDomChannel.getCurrent_mA();
+            float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
+            float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
 
-            bool voltsInRange = (volts < (DomDomChannel.maximum_voltage + v_histeresis) && volts > (DomDomChannel.maximum_voltage-v_histeresis));
-            bool mAInRange = (amps < (DomDomChannel.maximum_mA + mA_histeresis) && amps > (DomDomChannel.maximum_mA-mA_histeresis));
+            bool voltsInRange = (volts < (DomDomChannel.target_V + v_histeresis) && volts > (DomDomChannel.target_V - v_histeresis));
+            bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
+
+            DomDomChannel.busCurrent_mA = amps;
+            DomDomChannel.busVoltaje_V = volts;
 
             bool skip = false;
 
@@ -126,19 +142,19 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
             {
                 skip = true;
             }
-            else if (mAInRange && volts < DomDomChannel.maximum_voltage + v_histeresis )
+            else if (mAInRange && volts < DomDomChannel.target_V + v_histeresis )
             {
                 skip = true;
             }
 
             if (!skip)
             {
-                if ((amps > DomDomChannel.maximum_mA || volts > DomDomChannel.maximum_voltage) && curr_pwm < max_dac_pwm)
+                if ((amps > DomDomChannel.maximum_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
                 {
                     dacWrite(channel, ++curr_pwm);
                 }
 
-                if ((amps < DomDomChannel.maximum_mA && volts < DomDomChannel.maximum_voltage) &&  curr_pwm > min_dac_pwm)
+                if ((amps < DomDomChannel.maximum_mA && volts < DomDomChannel.target_V) &&  curr_pwm > min_dac_pwm)
                 {
                     dacWrite(channel, --curr_pwm);
                 }
@@ -148,8 +164,8 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             if (millis() - prev_millis_info > CHANNEL_BUS_REFRESH_INTERVAL )
             {
-                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.maximum_voltage);
-                Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.maximum_mA);
+                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.target_V);
+                Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.target_mA);
                 Serial.printf("Bus voltage: %fV\r\n", volts);
                 Serial.printf("Bus miliamps: %fmA\r\n", amps);
                 Serial.printf("DAC: %d\r\n", curr_pwm);
@@ -176,98 +192,35 @@ bool DomDomChannelClass::setEnabled(bool enabled)
     return true;
 }
 
-bool DomDomChannelClass::setPWMValue(uint16_t value)
+bool DomDomChannelClass::setTargetmA(float value)
 {
-    if (!_iniciado || (!_enabled && value != 0))
+    if (!_enabled && value != 0)
     {
         return false;
     }
 
-    if (value > max_limit_pwm)
+    if (value > maximum_mA)
     {
-        value =  max_limit_pwm;
-        Serial.printf("ERROR: valor pwm mayor que el maximo. Valor cambiado a %d\n", value);
+        value =  maximum_mA;
+        Serial.printf("[CHANNEL %d] ERROR: valor pwm mayor que el maximo. Valor cambiado a %f\r\n", _channel_num, value);
     }
 
-    if (value < min_limit_pwm)
+    if (value < minimum_mA)
     {
-        value = min_limit_pwm;
-        Serial.printf("ERROR: valor pwm menor que el minimo. Valor cambiado a %d\n", value);
+        value = minimum_mA;
+        Serial.printf("[CHANNEL %d] ERROR: valor pwm menor que el minimo. Valor cambiado a %f\r\n", _channel_num, value);
     }
 
-    ledcWrite(_channel_num, value);
+    target_mA = value;
 
-    _current_pwm = value;
-
-    Serial.printf("[Channel %d] PWM: %d\n", _channel_num, _current_pwm);
+    Serial.printf("[Channel %d] Target mA: %f\n", _channel_num, target_mA);
     
     return true;
-}
-
-bool DomDomChannelClass::setPWMResolution(uint8_t value)
-{
-    if (value != 8 && value != 10 && value != 12 && value != 15)
-    {
-        Serial.printf("ERROR: El valor de resolucion no se encuentra entre los permitidos (%d)\n",value);
-        return false;
-    }
-
-    _resolution = value;
-    _min_pwm = 0;
-    _max_pwn = (int)pow(2,value);
-    max_limit_pwm = _max_pwn;
-    min_limit_pwm = _min_pwm;
-
-    ledcSetup(_channel_num, 5000, _resolution);
-
-    return true;
-}
-
-bool DomDomChannelClass::saveCurrentPWM()
-{
-    int address = getFirstEEPROMAddress();
-    address += 14;
-
-    EEPROM.writeUShort(address, _current_pwm);
-    return EEPROM.commit();
 }
 
 bool DomDomChannelClass::started()
 {
     return _iniciado;
-}
-
-void DomDomChannelClass::waitForConversion()
-{
-    currentSensor.waitForConversion(0);
-}
-
-float DomDomChannelClass::getBusVoltage_V()
-{
-    xSemaphoreTake( xMutex, portMAX_DELAY );
-    // unsigned long prev_millis = millis();
-    // uint32_t interval = INA_AVERAGING * INA_CONVERSION_TIME / 1000;
-    float v = currentSensor.getBusMilliVolts(0) / 1000.0;
-    // while (millis() - prev_millis < interval )
-    // {
-    //     delay(1);
-    // }
-    xSemaphoreGive( xMutex );
-    return v; 
-}
-
-float DomDomChannelClass::getCurrent_mA()
-{
-    xSemaphoreTake( xMutex, portMAX_DELAY );
-    // unsigned long prev_millis = millis();
-    // uint32_t interval = INA_AVERAGING * INA_CONVERSION_TIME / 1000;
-    float mA = currentSensor.getBusMicroAmps(0) / 1000.0;
-    // while (millis() - prev_millis < interval )
-    // {
-    //     delay(1);
-    // }
-    xSemaphoreGive( xMutex );
-    return mA; 
 }
 
 bool DomDomChannelClass::save()
@@ -278,16 +231,16 @@ bool DomDomChannelClass::save()
     address += 1;
     EEPROM.writeBool(address, _enabled);
     address += 1;
-    EEPROM.writeUShort(address, max_limit_pwm);
+    EEPROM.writeUShort(address, _INA_address);
     address += 2;
-    EEPROM.writeUShort(address, min_limit_pwm);
-    address += 2;
+    EEPROM.writeFloat(address, target_V);
+    address += 4;
     EEPROM.writeFloat(address, maximum_mA);
     address += 4;
-    EEPROM.writeFloat(address, maximum_voltage);
+    EEPROM.writeFloat(address, minimum_mA);
     address += 4;
-    EEPROM.writeUShort(address, _current_pwm);
-    address += 2;
+    EEPROM.writeFloat(address, target_mA);
+    address += 4;
 
     if (leds.size() > 0)
     {
@@ -318,6 +271,12 @@ bool DomDomChannelClass::save()
 
 bool DomDomChannelClass::loadFromEEPROM()
 {
+    bool started = DomDomChannel.started();
+    if (started)
+    {
+        end();
+    }
+
     int address = getFirstEEPROMAddress();
 
     if (EEPROM.read(address) == (_channel_num+1))
@@ -325,20 +284,16 @@ bool DomDomChannelClass::loadFromEEPROM()
         address += 1;
         setEnabled(EEPROM.readBool(address));
         address += 1;
-        max_limit_pwm = EEPROM.readUShort(address);
-        if (max_limit_pwm > _max_pwn)
-        {
-            max_limit_pwm = _max_pwn;
-        }
+        _INA_address = EEPROM.readUShort(address);
         address += 2;
-        min_limit_pwm = EEPROM.readUShort(address);
-        address += 2;
+        target_V = EEPROM.readFloat(address);
+        address += 4;
         maximum_mA = EEPROM.readFloat(address);
         address += 4;
-        maximum_voltage = EEPROM.readFloat(address);
+        minimum_mA = EEPROM.readFloat(address);
         address += 4;
-        _current_pwm = EEPROM.readUShort(address);
-        address += 2;
+        target_mA = EEPROM.readFloat(address);
+        address += 4;
 
         int leds_count = EEPROM.read(address);
         address++;
@@ -364,6 +319,11 @@ bool DomDomChannelClass::loadFromEEPROM()
         Serial.printf("[CHANNEL %d] No se encontro informacion guardada del canal\n", _channel_num);
         save();
         return false;
+    }
+
+    if (started)
+    {
+        begin();
     }
 
     return true;

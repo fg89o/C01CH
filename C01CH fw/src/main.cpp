@@ -29,6 +29,7 @@
 #include "webServer/webServer.h"
 #include "EEPROMHelper.h"
 #include "channel/ScheduleMgt.h"
+#include "fan/fanControl.h"
 
 void initEEPROM()
 {
@@ -91,8 +92,6 @@ void setup()
   DomDomRTC.load();
 
   // configuramos el canal
-  DomDomChannel.pwm_pin = CHANNEL_PWM_PIN;
-  DomDomChannel.setPWMResolution(CHANNEL_RESOLUTION);
   DomDomChannel.loadFromEEPROM();
   
   // Iniciamos el servidor web
@@ -108,8 +107,6 @@ void setup()
     DomDomRTC.begin();
   }  
 
-  DomDomStatusLedControl.on();
-
   // Iniciamos el canal
   DomDomChannel.begin();  
 
@@ -118,8 +115,11 @@ void setup()
   {
       DomDomScheduleMgt.begin();
   }else{
-    DomDomChannel.setPWMValue(DomDomChannel.current_pwm());
+    DomDomChannel.setTargetmA(DomDomChannel.target_mA);
   }
+
+  // Ventilador
+  DomDomFanControl.begin();
 }
 
 void loop()

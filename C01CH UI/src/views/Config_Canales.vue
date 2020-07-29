@@ -67,16 +67,8 @@
         <v-row>
           <v-col cols="6" sm="3">
             <v-text-field
-                v-model="item.resolution"
-                label="Resolución"
-                readonly
-                dense
-            ></v-text-field>
-          </v-col>
-          <v-col cols="6" sm="3">
-            <v-text-field
-                v-model="item.current_pwm"
-                label="Valor PWM actual"
+                v-model="item.target_mA"
+                label="mA objetivo actuales"
                 readonly
                 dense
             ></v-text-field>
@@ -109,42 +101,17 @@
           </v-col>
         </v-row>
         <v-row>
-          <v-col cols="12" class="py-0">
-            <v-subheader>Rango PWM</v-subheader>
-            <v-range-slider
-              v-model="item.range"
-              :max="Math.pow(2,item.resolution)"
-              :min="0"
-              hide-details
-              class="align-center"
-            >
-              <template v-slot:prepend>
-                <v-text-field
-                  :value="item.range[0]"
-                  class="mt-0 pt-0"
-                  hide-details
-                  single-line
-                  type="number"
-                  style="width: 60px"
-                  @change="$set(range, 0, $event)"
-                ></v-text-field>
-              </template>
-              <template v-slot:append>
-                <v-text-field
-                  :value="item.range[1]"
-                  class="mt-0 pt-0"
-                  hide-details
-                  single-line
-                  type="number"
-                  style="width: 60px"
-                  @change="$set(range, 1, $event)"
-                ></v-text-field>
-              </template>
-            </v-range-slider>
+          <v-col cols="12">
+            <v-text-field
+                v-model="item.min_mA"
+                label="Miliamperios Mínimos"
+                hint = "Miliamperios mínimos al que se limitará el canal"
+                type="number"
+                suffix="mA"
+                persistent-hint
+                required
+            ></v-text-field>
           </v-col>
-          <p class="my-4 px-4 overline">
-          Cambie el valor máximo y mínimo del PWM para variar el brillo máximo y mínimo de cada canal. Este valor es el más restrictivo de toda la aplicación.
-          </p>
         </v-row>
         <v-row>
           <v-col cols="12" class="py-0">
@@ -230,10 +197,6 @@ export default {
 
         this.$http.get(this.$remoteServer + 'canales').then(function(response){
           self.canales = response.body["canales"];
-          for(var i = 0; i < self.canales.length; i++)
-          {
-            self.canales[i]["range"] = [self.canales[i].min_pwm, self.canales[i].max_pwm];
-          }
           self.loading = false;
         }, function(){
             self.error = true;
@@ -248,9 +211,8 @@ export default {
 
         for (var i = 0; i < self.canales.length; i++)
         {
-          self.canales[i].min_pwm = self.canales[i].range[0];
-          self.canales[i].max_pwm = self.canales[i].range[1];
           self.canales[i].max_mA = parseFloat(self.canales[i].max_mA);
+          self.canales[i].min_mA = parseFloat(self.canales[i].min_mA);
           self.canales[i].max_volts = parseFloat(self.canales[i].max_volts);
         }
 

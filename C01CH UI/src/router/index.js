@@ -60,6 +60,11 @@ const routes = [
     component : () => import(/* webpackChunkName: "adj" */ '../views/Adj_Programacion_editar.vue'),
     props: true
   },
+  {
+    path: '/fan',
+    name: 'Fan',
+    component : () => import(/* webpackChunkName: "adj" */ '../views/Adj_Fan.vue')
+  },
 ]
 
 const router = new VueRouter({

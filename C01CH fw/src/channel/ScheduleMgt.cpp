@@ -219,7 +219,7 @@ bool DomDomScheduleMgtClass::begin()
         {
             // Si no hay puntos de programación ponemos el valor al 100%
             Serial.printf("[Schedule] No hay puntos de programacion. Cambiado a modo manual.\n");
-            DomDomChannel.setPWMValue(DomDomChannel.current_pwm());
+            DomDomChannel.setTargetmA(DomDomChannel.maximum_mA);
         }
         
     }
@@ -266,21 +266,21 @@ void DomDomScheduleMgtClass::update()
 
     if (!puntoSiguiente->fade || puntoAnterior->value == puntoSiguiente->value)
     {
-        int pwm = 0;
+        int mA = 0;
         double porcentaje = puntoSiguiente->value / 100;
-        pwm = DomDomChannel.min_limit_pwm + ((DomDomChannel.max_limit_pwm - DomDomChannel.min_limit_pwm) * porcentaje);
-        DomDomChannel.setPWMValue(pwm);
+        mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * porcentaje);
+        DomDomChannel.setTargetmA(mA);
     }
     else
     {
-        int pwm = calcFadeValue(puntoAnterior->value, 
+        int mA = calcFadeValue(puntoAnterior->value, 
                                 puntoSiguiente->value,
-                                DomDomChannel.min_limit_pwm,
-                                DomDomChannel.max_limit_pwm,
+                                DomDomChannel.minimum_mA,
+                                DomDomChannel.maximum_mA,
                                 horaAnterior,
                                 horaSiguiente);
         
-        DomDomChannel.setPWMValue(pwm);
+        DomDomChannel.setTargetmA(mA);
     }
 }
 
@@ -328,7 +328,7 @@ int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_
     return 0;
 }
 
-void DomDomScheduleMgtClass::startTest(uint16_t pwm)
+void DomDomScheduleMgtClass::startTest(uint16_t value)
 {
     if (_testInProgress)
     {
@@ -339,7 +339,7 @@ void DomDomScheduleMgtClass::startTest(uint16_t pwm)
     _testInProgress = true;
     end();
 
-    DomDomChannel.setPWMValue(pwm);
+    DomDomChannel.setTargetmA(value);
 
     xTaskCreate(
         this->testTask,     /* Task function. */

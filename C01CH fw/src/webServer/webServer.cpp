@@ -31,6 +31,7 @@
 #include "channel/channel.h"
 #include "EEPROMHelper.h"
 #include "Update.h"
+#include "fan/fanControl.h"
 
 String GetBodyContent(uint8_t *data, size_t len)
 {
@@ -92,6 +93,10 @@ void DomDomWebServerClass::begin()
     // AJAX para los puntos de programacion
     _server->on("/schedule", HTTP_GET, getSchedule);
     _server->on("/schedule", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setSchedule);
+
+    // AJAX para el control de ventilador
+    _server->on("/fansettings", HTTP_GET, getFanSettings);
+    _server->on("/fansettings", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setFanSettings);
 
     // AJAX para realizar un test de color
     _server->on("/test", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setTest);
@@ -322,16 +327,17 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     JsonObject obj = ports.createNestedObject();
     obj["enabled"] = DomDomChannel.getEnabled();
     obj["channel_num"] = DomDomChannel.getNum();
-    obj["resolution"] = DomDomChannel.getResolution();
-    obj["min_pwm"] = DomDomChannel.min_limit_pwm;
-    obj["max_pwm"] = DomDomChannel.max_limit_pwm;
-    obj["current_pwm"] = DomDomChannel.current_pwm();
+    obj["target_mA"] = DomDomChannel.target_mA;
     obj["max_mA"] = DomDomChannel.maximum_mA;
-    obj["max_volts"] = DomDomChannel.maximum_voltage;
+    obj["min_mA"] = DomDomChannel.minimum_mA;
+    obj["max_volts"] = DomDomChannel.target_V;
     obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
 
-    float volts = DomDomChannel.getBusVoltage_V();
-    float amps = DomDomChannel.getCurrent_mA();
+    // float volts = DomDomChannel.getBusVoltage_V();
+    // float amps = DomDomChannel.getCurrent_mA();
+
+    float volts = DomDomChannel.busVoltaje_V;
+    float amps = DomDomChannel.busCurrent_mA;
 
     String str_volts = String(volts,2);
     String str_amps = String(amps,3);
@@ -392,15 +398,14 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
         for(JsonObject canal : canales)
         {
             DomDomChannel.setEnabled(canal["enabled"]);
-            DomDomChannel.max_limit_pwm = canal["max_pwm"];
-            DomDomChannel.min_limit_pwm = canal["min_pwm"];
-            DomDomChannel.maximum_voltage = canal["max_volts"];
+            DomDomChannel.target_V = canal["max_volts"];
             DomDomChannel.maximum_mA = canal["max_mA"];
+            DomDomChannel.minimum_mA = canal["min_mA"];
 
             if (!DomDomScheduleMgt.isStarted())
             {
                 // DomDomStatusLedControl.blink(1);
-                DomDomChannel.setPWMValue(canal["current_pwm"]);
+                DomDomChannel.setTargetmA(canal["target_mA"]);
             }
 
             if (canal.containsKey("leds"))
@@ -568,6 +573,70 @@ void DomDomWebServerClass::setTest(AsyncWebServerRequest * request, uint8_t *dat
         DomDomScheduleMgt.startTest(pwm[0]);
     }
 
+    SendResponse(request);
+}
+
+void DomDomWebServerClass::getFanSettings(AsyncWebServerRequest *request)
+{
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+        
+    StaticJsonDocument<1024> jsonDoc;
+    
+    jsonDoc["enabled"] = DomDomFanControl.isStarted();
+    jsonDoc["max_pwm"] = DomDomFanControl.max_pwm;
+    jsonDoc["min_pwm"] = DomDomFanControl.min_pwm;
+    jsonDoc["curr_pwm"] = DomDomFanControl.curr_pwm;
+    jsonDoc["max_channel_value"] = DomDomFanControl.max_channel_value;
+    jsonDoc["min_channel_value"] = DomDomFanControl.min_channel_value;
+
+    serializeJson(jsonDoc, *response);
+    
+    SendResponse(request,response);
+}
+
+void DomDomWebServerClass::setFanSettings(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+     String bodyContent = GetBodyContent(data, len);
+    
+    DynamicJsonDocument doc(1024);;
+    DeserializationError err = deserializeJson(doc, bodyContent);
+
+    if (err) { 
+        request->send(400); 
+        return;
+    }
+    
+    if (doc.containsKey("enabled"))
+    {
+        if (doc["enabled"])
+        {
+            Serial.printf("[FAN] Control automático iniciado.");
+            DomDomFanControl.begin();
+        }
+        else
+        {
+            Serial.printf("[FAN] Control automático parado.");
+            DomDomFanControl.end();
+        }
+    }
+
+    if (DomDomFanControl.isStarted())
+    {
+        DomDomFanControl.max_channel_value = doc["max_channel_value"];
+        DomDomFanControl.min_channel_value = doc["min_channel_value"];
+        DomDomFanControl.max_pwm = doc["max_pwm"];
+        DomDomFanControl.min_pwm = doc["min_pwm"];
+    }
+    else
+    {
+        if (doc.containsKey("curr_pwm"))
+        {
+            DomDomFanControl.setCurrentPWM(doc["curr_pwm"]);
+        }
+    }
+
+    DomDomFanControl.save();
+    
     SendResponse(request);
 }
 

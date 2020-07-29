@@ -179,9 +179,9 @@ export default {
 
         if (self.porcentaje[i] != self.canales[i].porcentaje)
         {
-          var rango = self.canales[i].max_pwm - self.canales[i].min_pwm;
-          var valor = self.canales[i].min_pwm + (rango * self.porcentaje[i] / 100);
-          self.canales[i].current_pwm = valor;
+          var rango = self.canales[i].max_mA - self.canales[i].min_mA;
+          var valor = self.canales[i].min_mA + (rango * self.porcentaje[i] / 100);
+          self.canales[i].target_mA = valor;
 
           self.canales[i].porcentaje = self.porcentaje[i];
           tmpCanales.push(self.canales[i]);
@@ -222,8 +222,8 @@ export default {
 
         for (var i = 0; i < self.canales.length; i++)
         {
-          var rango = self.canales[i].max_pwm - self.canales[i].min_pwm;
-          var valor = self.canales[i].current_pwm - self.canales[i].min_pwm;
+          var rango = self.canales[i].max_mA - self.canales[i].min_mA;
+          var valor = self.canales[i].target_mA - self.canales[i].min_mA;
 
           self.canales[i].porcentaje = Math.round(valor * 100 / rango);
 

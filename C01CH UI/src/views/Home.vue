@@ -202,9 +202,9 @@ export default {
         self.siguiente_hora = response.body["modo_programado"] 
           ? response.body["siguiente_punto_hora"].toString().padStart(2,"0") + ":" + response.body["siguiente_punto_minuto"].toString().padStart(2,"0")
           : "__:__";
-        self.volts = response.body["canales"][0]["bus_volts"].toFixed(2) + "V";
-        self.amps = (response.body["canales"][0]["bus_miliamps"] / 1000).toFixed(3) + "A";
-        self.power = ((response.body["canales"][0]["bus_miliamps"] / 1000) * response.body["canales"][0]["bus_volts"]).toFixed(2)+"W";
+        self.volts = response.body["canales"][0]["bus_volts"].toFixed(1) + "V";
+        self.amps = (response.body["canales"][0]["bus_miliamps"] / 1000).toFixed(2) + "A";
+        self.power = ((response.body["canales"][0]["bus_miliamps"] / 1000) * response.body["canales"][0]["bus_volts"]).toFixed(0)+"W";
 
         self.fillChartData( response.body["canales"] );
 

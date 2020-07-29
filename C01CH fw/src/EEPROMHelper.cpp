@@ -44,21 +44,21 @@ void EEPROMInit()
     // enabled
     EEPROM.write(address,0);
     address += 1;
-    // MAX PWM
+    // INA ADDRESS
     EEPROM.writeUShort(address,0);
     address += 2;
-    // MIN PWM
-    EEPROM.writeUShort(address,0);
-    address += 2;
+    // TARGET VOLTS
+    EEPROM.writeFloat(address,0);
+    address += 4;
     // MAX miliamps
     EEPROM.writeFloat(address,0);
     address += 4;
-    // MIN voltage
+    // MIN MILIAMPS
     EEPROM.writeFloat(address,0);
     address += 4;
-    // CURRENT PWM
-    EEPROM.writeUShort(address,0);
-    address += 2;
+    // TARGET MILIAMPS
+    EEPROM.writeFloat(address,0);
+    address += 4;
     // LEDS
     EEPROM.write(address,0);
     /************************************************************/
