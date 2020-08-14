@@ -100,7 +100,7 @@ class DomDomChannelClass
          */
         float maximum_mA;
         /**
-         * Límite mínimi para los miliamperios en este canal
+         * Límite mínimo para los miliamperios en este canal
          */
         float minimum_mA;
         /**

@@ -24,7 +24,7 @@
 
 const uint32_t SHUNT_MICRO_OHM      = 100000;  ///< Shunt resistance in Micro-Ohm, e.g. 100000 is 0.1 Ohm
 const uint16_t MAXIMUM_AMPS         = 3;       ///< Max expected amps, values are 1 - clamped to max 1022
-const uint16_t INA_AVERAGING        = 32;
+const uint16_t INA_AVERAGING        = 64;
 const uint16_t INA_CONVERSION_TIME  = 8244;
 
 DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
@@ -125,8 +125,21 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
     while(DomDomChannel.started())
     {
+
+        float prev_targetVolts = -1;
+        float prev_targetmA = -1;
+        bool skip = false;
+
         if (DomDomChannel.INA.conversionFinished(0))
         {
+            // Si los voltios  o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
+            if (DomDomChannel.target_V != prev_targetVolts || DomDomChannel.target_mA != prev_targetmA)
+            {
+                float prev_targetVolts = DomDomChannel.target_V;
+                float prev_targetmA = DomDomChannel.target_mA;
+                skip = false;
+            } 
+
             float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
             float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
 
@@ -135,8 +148,6 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             DomDomChannel.busCurrent_mA = amps;
             DomDomChannel.busVoltaje_V = volts;
-
-            bool skip = false;
 
             if (voltsInRange && amps < DomDomChannel.maximum_mA + mA_histeresis)
             {
