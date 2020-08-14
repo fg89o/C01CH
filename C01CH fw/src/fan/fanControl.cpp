@@ -41,7 +41,7 @@ void DomDomFanControlClass::begin()
         max_channel_value = 100;
 
         // configure LED PWM functionalitites
-        ledcSetup(FAN_PWM_CHANNEL, 5000, FAN_PWM_RESOLUTION);
+        ledcSetup(FAN_PWM_CHANNEL, 50000, FAN_PWM_RESOLUTION);
 
         // attach the channel to be controlled
         ledcAttachPin(FAN_PWM_PIN, FAN_PWM_CHANNEL);

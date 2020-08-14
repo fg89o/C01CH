@@ -114,6 +114,8 @@ void DomDomWebServerClass::begin()
         
         DomDomChannel.end();
 
+        delay(5000);
+        
         ESP.restart();
 
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {

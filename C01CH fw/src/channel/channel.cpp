@@ -138,7 +138,7 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             bool skip = false;
 
-            if (voltsInRange && amps < DomDomChannel.maximum_mA + mA_histeresis)
+            if (voltsInRange && amps < DomDomChannel.target_mA + mA_histeresis)
             {
                 skip = true;
             }
@@ -149,12 +149,12 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             if (!skip)
             {
-                if ((amps > DomDomChannel.maximum_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
+                if ((amps > DomDomChannel.target_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
                 {
                     dacWrite(channel, ++curr_pwm);
                 }
 
-                if ((amps < DomDomChannel.maximum_mA && volts < DomDomChannel.target_V) &&  curr_pwm > min_dac_pwm)
+                if ((amps < DomDomChannel.target_mA && volts < DomDomChannel.target_V) &&  curr_pwm > min_dac_pwm)
                 {
                     dacWrite(channel, --curr_pwm);
                 }
