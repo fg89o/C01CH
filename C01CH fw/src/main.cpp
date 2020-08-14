@@ -30,11 +30,14 @@
 #include "EEPROMHelper.h"
 #include "channel/ScheduleMgt.h"
 #include "fan/fanControl.h"
+#include "log/logger.h"
+
+static String TAG = "MAIN";
 
 void initEEPROM()
 {
   
-  Serial.printf("Iniciando EEPROM con %d bytes\n", EEPROM_SIZE+EEPROM_INA_SIZE);
+  DomDomLogger.logV(TAG, "Iniciando EEPROM con %d bytes\r\n", EEPROM_SIZE+EEPROM_INA_SIZE);
   bool init = false;
   int err_count = 0;
   while(err_count<EEPROM_INIT_RETRIES && !init)
@@ -56,9 +59,9 @@ void setup()
 {
   Serial.begin(BAUDRATE);
 
-  Serial.println("===============================================");
-  Serial.println(" C01CH Firmware \n Copyright (c) 2020 DomDom ");
-  Serial.println("===============================================");
+  DomDomLogger.logI(TAG, "=====================================================\r\n");
+  DomDomLogger.logI(TAG, " C01CH Firmware \n Copyright (c) 2020 Óscar Fernández\r\n");
+  DomDomLogger.logI(TAG, "=====================================================\r\n");
 
   // Inicializamos la eeprom
   initEEPROM();
