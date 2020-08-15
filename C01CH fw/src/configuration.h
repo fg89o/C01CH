@@ -74,6 +74,7 @@
 #define CHANNEL_MAX_LEDS_CONFIG         10
 #define CHANNEL_CURRENT_PIN             { 25 }
 #define CHANNEL_BUS_REFRESH_INTERVAL    10000
+#define CHANNEL_PERCENTAGE_MIN_STEP     5
 
 //===========================================================================
 //============================ FAN SECTION =============================

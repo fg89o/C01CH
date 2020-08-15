@@ -31,6 +31,20 @@ DomDomScheduleMgtClass::~DomDomScheduleMgtClass()
 {
 }
 
+int roundUp(int numToRound, int multiple)
+{
+    if (multiple == 0)
+        return numToRound;
+
+    int remainder = abs(numToRound) % multiple;
+    if (remainder == 0)
+        return numToRound;
+
+    if (numToRound < 0)
+        return -(abs(numToRound) - remainder);
+    else
+        return numToRound + multiple - remainder;
+}
 
 bool DomDomScheduleMgtClass::getShedulePoint(DateTime &dt, DomDomSchedulePoint *&point, bool previous)
 {
@@ -264,24 +278,30 @@ void DomDomScheduleMgtClass::update()
 
     Serial.printf("[Schedule] intervalo obtenido: %d:%d - %d:%d\n", puntoAnterior->hour, puntoAnterior->minute, puntoSiguiente->hour, puntoSiguiente->minute);
 
+    int mA = 0;
+    int porcentaje = 0;
+
     if (!puntoSiguiente->fade || puntoAnterior->value == puntoSiguiente->value)
     {
-        int mA = 0;
-        double porcentaje = puntoSiguiente->value / 100;
-        mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * porcentaje);
-        DomDomChannel.setTargetmA(mA);
+        porcentaje = puntoSiguiente->value;
     }
     else
     {
-        int mA = calcFadeValue(puntoAnterior->value, 
+        porcentaje = calcFadeValue(puntoAnterior->value, 
                                 puntoSiguiente->value,
                                 DomDomChannel.minimum_mA,
                                 DomDomChannel.maximum_mA,
                                 horaAnterior,
                                 horaSiguiente);
-        
-        DomDomChannel.setTargetmA(mA);
+        porcentaje = roundUp(porcentaje, CHANNEL_PERCENTAGE_MIN_STEP);
     }
+
+    if (porcentaje != 0)
+    {
+        mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * (double)(porcentaje/100.0f));
+    }
+
+    DomDomChannel.setTargetmA(mA);
 }
 
 void DomDomScheduleMgtClass::scheduleTask(void *parameter)
@@ -299,17 +319,14 @@ void DomDomScheduleMgtClass::scheduleTask(void *parameter)
 
 int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_value, int max_value, DateTime anterior, DateTime siguiente)
 {
+    int porcentaje_result = 0;
     int minutes_total = (siguiente - anterior).totalseconds() / 60;
 
     // Si la hora es la misma ajustamos directamente el valor.
     if (minutes_total == 0)
     {
         Serial.println("WARN: Misma hora de inicio y de final. ¿Error en programacion?");
-        int new_pwm = 0;
-        double porcentaje = nextValue / 100;
-        new_pwm = min_value + ((max_value - min_value) * porcentaje);
-        
-        return new_pwm;
+        porcentaje_result = nextValue;
     }
     else
     {
@@ -320,12 +337,12 @@ int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_
         double minutes_porcentaje = (minutes * 100) / minutes_total / double(100);
 
         int porcentaje_valor = (nextValue - prevValue) * minutes_porcentaje;
-        int new_pwm = min_value + (max_value - min_value) * ((prevValue + porcentaje_valor) / double(100));
 
-        return new_pwm;
+        porcentaje_result = prevValue + porcentaje_valor;
+        //int new_pwm = min_value + (max_value - min_value) * ((prevValue + porcentaje_valor) / double(100));
     }   
 
-    return 0;
+    return porcentaje_result;
 }
 
 void DomDomScheduleMgtClass::startTest(uint16_t value)
