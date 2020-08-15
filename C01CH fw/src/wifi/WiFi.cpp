@@ -23,9 +23,6 @@
 #include <ESPmDNS.h>
 #include <EEPROM.h>
 #include "configuration.h"
-#include "log/logger.h"
-
-static String TAG = "WIFI";
 
 DomDomWifiClass::DomDomWifiClass()
 {
@@ -34,13 +31,13 @@ DomDomWifiClass::DomDomWifiClass()
 
 bool DomDomWifiClass::begin()
 {
-    DomDomLogger.logI(TAG, "Iniciando WiFi\r\n");
+    Serial.println("Iniciando WiFi");
 
     ssid = DomDomWifi.readSTASSID();
     pwd = DomDomWifi.readSTAPass();
     if (!(ssid.length() > 1 && ssid.length() < EEPROM_SSID_NAME_LENGTH))
     {
-        DomDomLogger.logD(TAG,"Valores en EEPROM no validos. Usando valores wifi por defecto\r\n");
+        Serial.println("...Usando valores wifi por defecto...");
         ssid = WIFI_STA_SSID_NAME;
         pwd = WIFI_STA_PASSWORD;
     }
@@ -59,7 +56,7 @@ void DomDomWifiClass::connect()
     // Si tenemos red WIFI a la que conectarnos lo intentamos
     if (ssid.length() > 0)
     {
-        DomDomLogger.logI(TAG, "Conectando Wifi a %s\r\n", ssid.c_str());
+        Serial.printf("Intentando conexion Wifi a %s\n", ssid.c_str());
         for(int i = 0; i < WIFI_NUM_RETRIES; i++)
         {
             connectSTAWifi();
@@ -68,7 +65,7 @@ void DomDomWifiClass::connect()
             {
                 if ((millis() - prev_ms) % 1000 == 0)
                 {
-                    DomDomLogger.logV(TAG, "_");
+                    Serial.print('_');
                 }
             }
             
@@ -76,10 +73,10 @@ void DomDomWifiClass::connect()
 
             if (!_connected)
             {
-                DomDomLogger.logV(TAG, ".");
+                Serial.print('.');
                 delay(1000);
             }else{
-                DomDomLogger.logV(TAG, "\r\n");
+                Serial.print("\n");
                 printWifiInfo();
                 break;
             }
@@ -87,36 +84,33 @@ void DomDomWifiClass::connect()
 
         if (!_connected)
         {
-            DomDomLogger.logE(TAG, "Agotados intentos de conexion!\r\n");
+            Serial.println("Agotados intentos de conexion!");
         }
     }
 
     // Si no nos hemos conectado creamos el punto de acceso
     if (!_connected)
     {
-        DomDomLogger.logI(TAG, "Creando AP\r\n");
+        Serial.print("Creando AP");
         for(int i = 0; i < WIFI_NUM_RETRIES; i++)
         {
             _connected = createOwnAPWifi();
 
             if (_connected)
             {
+                Serial.print("\n");
                 printWifiInfo();
                 break;
             }
             
+            Serial.print('.');
             delay(2000);
         }
     }
     
-    if (!_connected)
-    {
-        DomDomLogger.logE(TAG, "No se puedo crear el punto de acceso!\r\n");
-    }
-    
     if (_connected && mDNS_enabled)
     {
-        DomDomLogger.logI(TAG, "Configurando mDNS");
+        Serial.println("Configurando mDNS");
         beginmDNS();
     }
 }
@@ -151,11 +145,11 @@ bool DomDomWifiClass::beginmDNS()
     }
 
     if (!MDNS.begin(mDNS_hostname.c_str())) {
-        DomDomLogger.logE(TAG, "Error al configurar el servicio MDNS!\r\n");
+        Serial.println("Error al configurar el servicio MDNS!");
         return false;
     }
 
-    DomDomLogger.logI(TAG, "Configurado mDNS con hostname %s.local\r\n", mDNS_hostname.c_str());
+    Serial.printf("Configurado mDNS con hostname %s.local\n", mDNS_hostname.c_str());
     return true;
 }
 
@@ -195,25 +189,25 @@ void DomDomWifiClass::printWifiInfo()
             break;
     };
 
-    DomDomLogger.logI(TAG, "=== Wifi Info ===\r\n");
+    Serial.println("=== Wifi Info ===");
     
     if (WiFi.getMode() == WIFI_MODE_STA)
     {
-        DomDomLogger.logI(TAG, "· Modo: \tSTA\r\n");
-        DomDomLogger.logI(TAG, "· Estado: \t%s\r\n", (char *)(WiFi.status() == WL_CONNECTED ? "Conectado" : "Desconectado"));
-        DomDomLogger.logI(TAG, "· SSID: \t%s\r\n", WIFI_STA_SSID_NAME);
-        DomDomLogger.logI(TAG, "· IP Local: \t%s\r\n", WiFi.localIP().toString().c_str());
-        DomDomLogger.logI(TAG, "· Gateway: \t%s\r\n", WiFi.gatewayIP().toString().c_str());
-        DomDomLogger.logI(TAG, "· DNS: \t%s\r\n", WiFi.dnsIP().toString().c_str());
+        Serial.printf("· Modo: STA\n");
+        Serial.printf("· Estado: %s\n", (char *)(WiFi.status() == WL_CONNECTED ? "Conectado" : "Desconectado"));
+        Serial.printf("· SSID: %s\n", WIFI_STA_SSID_NAME);
+        Serial.printf("· IP Local: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("· Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+        Serial.printf("· DNS: %s\n", WiFi.dnsIP().toString().c_str());
     }
 
     if (WiFi.getMode() == WIFI_MODE_AP)
     {
-        DomDomLogger.logI(TAG, "· Modo: \tAP\r\n");
-        DomDomLogger.logI(TAG, "· SSID: \t%s\r\n", WIFI_AP_SSID_NAME);
-        DomDomLogger.logI(TAG, "· IP Local: \t%s\r\n", WiFi.softAPIP().toString().c_str());
-        DomDomLogger.logI(TAG, "· Network ID: \t%s\r\n",WiFi.softAPNetworkID().toString().c_str());
-        DomDomLogger.logI(TAG, "· MAC: \t%s\r\n", WiFi.softAPmacAddress().c_str());
+        Serial.print("· Modo: AP\n");
+        Serial.printf("· SSID: %s\n", WIFI_AP_SSID_NAME);
+        Serial.printf("· IP Local: %s\n", WiFi.softAPIP().toString().c_str());
+        Serial.printf("· Network ID: %s\n",WiFi.softAPNetworkID().toString().c_str());
+        Serial.printf("· MAC: %s\n", WiFi.softAPmacAddress().c_str());
     }
 }
 
@@ -221,7 +215,7 @@ bool DomDomWifiClass::saveSTASSID(String str)
 {
     if (strlen(str.c_str()) > EEPROM_SSID_NAME_LENGTH)
     {
-        DomDomLogger.logE(TAG, "ERROR: SSID name too long!\r\n");
+        Serial.println("ERROR: SSID name too long!");
         return false;
     }
     
@@ -229,7 +223,7 @@ bool DomDomWifiClass::saveSTASSID(String str)
     bool result = EEPROM.commit();
     if (!result)
     {
-        DomDomLogger.logE(TAG, "Error al guardar en la EEPROM!!\r\n");
+        Serial.println("Error al guardar en la EEPROM!!");
     }
     return result;
 }
@@ -243,7 +237,7 @@ bool DomDomWifiClass::saveSTAPass(String password)
 {
     if (strlen(password.c_str()) > EEPROM_STA_PASSWORD_LENGTH)
     {
-       DomDomLogger.logE(TAG, "ERROR: Password too long!\r\n");
+        Serial.println("ERROR: Password too long!");
         return false;
     }
 
@@ -251,7 +245,7 @@ bool DomDomWifiClass::saveSTAPass(String password)
     bool result = EEPROM.commit();
     if (!result)
     {
-        DomDomLogger.logE(TAG, "Error al guardar en la EEPROM!!\r\n");
+        Serial.println("Error al guardar en la EEPROM!!");
     }
     return result;
 }
