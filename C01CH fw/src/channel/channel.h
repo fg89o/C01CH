@@ -120,6 +120,10 @@ class DomDomChannelClass
          */
         uint8_t curr_dac_pwm;
         /**
+         * Indica si la corriente de salida se encuentra estable
+         */
+        bool current_stable;
+        /**
          * Devuelve el numero del canal en solo lectura.
          */
         uint8_t getNum() const { return _channel_num; }

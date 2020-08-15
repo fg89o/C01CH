@@ -37,7 +37,7 @@ DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
     minimum_mA = 0.0f;
     target_V = 0.0f;
 
-    INA_device_index = -1;
+    INA_device_index = UINT8_MAX;
     _INA_address = INA_address;
 }
 
@@ -62,23 +62,20 @@ bool DomDomChannelClass::begin()
         {
             if (INA.getDeviceAddress(i) == _INA_address )
             {
-                Serial.print("[CHANNEL %d] Buscando INA . . . OK!\r\n");
+                Serial.printf("[CHANNEL %d] Buscando INA . . . OK!\r\n", _channel_num);
                 INA_device_index = i;
             }
         } 
 
-        if (INA_device_index == -1)
-        {
-            retry++;
-            delay(500);
-        }
+        retry++;
 
-    }while (INA_device_index == -1 && retry < max_retries);
+    }while (INA_device_index == UINT8_MAX && retry < max_retries);
 
-    if (INA_device_index == -1)
+    if (INA_device_index == UINT8_MAX)
     {
-        Serial.print("[CHANNEL %d] Error! INA no encontrado.\r\n");
+        Serial.printf("[CHANNEL %d] Error! INA no encontrado.\r\n", _channel_num);
         _enabled = false;
+
         return false;
     }
 
@@ -123,21 +120,20 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
     dacWrite(channel, curr_pwm);
 
+    float prev_targetVolts = -1;
+    float prev_targetmA = -1;
+    DomDomChannel.current_stable = false;
+
     while(DomDomChannel.started())
     {
-
-        float prev_targetVolts = -1;
-        float prev_targetmA = -1;
-        bool skip = false;
-
         if (DomDomChannel.INA.conversionFinished(0))
         {
             // Si los voltios  o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
             if (DomDomChannel.target_V != prev_targetVolts || DomDomChannel.target_mA != prev_targetmA)
             {
-                float prev_targetVolts = DomDomChannel.target_V;
-                float prev_targetmA = DomDomChannel.target_mA;
-                skip = false;
+                prev_targetVolts = DomDomChannel.target_V;
+                prev_targetmA = DomDomChannel.target_mA;
+                DomDomChannel.current_stable = false;
             } 
 
             float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
@@ -149,17 +145,18 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
             DomDomChannel.busCurrent_mA = amps;
             DomDomChannel.busVoltaje_V = volts;
 
-
             if (voltsInRange && amps < DomDomChannel.target_mA + mA_histeresis)
             {
-                skip = true;
+                DomDomChannel.current_stable = true;
+                Serial.printf("[CHANNEL %d] Salida estabilizada por voltios\r\n", DomDomChannel.getNum());
             }
             else if (mAInRange && volts < DomDomChannel.target_V + v_histeresis )
             {
-                skip = true;
+                DomDomChannel.current_stable = true;
+                Serial.printf("[CHANNEL %d] Salida estabilizada por amperios\r\n", DomDomChannel.getNum());
             }
 
-            if (!skip)
+            if (!DomDomChannel.current_stable)
             {
                 if ((amps > DomDomChannel.target_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
                 {
@@ -223,6 +220,7 @@ bool DomDomChannelClass::setTargetmA(float value)
     }
 
     target_mA = value;
+    current_stable = false;
 
     Serial.printf("[Channel %d] Target mA: %f\n", _channel_num, target_mA);
     
