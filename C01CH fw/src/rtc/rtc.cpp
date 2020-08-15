@@ -56,11 +56,13 @@ bool DomDomRTCClass::updateFromNTP()
     bool result = false;
     if (DomDomWifi.getMode() == 1)
     {
+        LastNTPCheck = millis();
         result = timeClient->forceUpdate();
         if (result)
         {
             Serial.printf("[NTP] tiempo recibido: %ld\n", timeClient->getEpochTime());
             adjust(timeClient->getEpochTime());
+            LastNTPCheck = millis();
         }
     }
     
@@ -95,11 +97,10 @@ void DomDomRTCClass::endNTP()
 
 void DomDomRTCClass::NTPTask(void * parameter)
 {
-    int ms = 0;
-    int step = 100;
+    int ms = NTP_DELAY_ON_SUCCESS;
     while(DomDomRTC.NTPStarted())
     {
-        if (ms <= 0)
+        if (millis() - DomDomRTC.LastNTPCheck >= ms)
         {
             if (DomDomRTC.updateFromNTP())
             {
@@ -111,12 +112,6 @@ void DomDomRTCClass::NTPTask(void * parameter)
                 Serial.println("ERROR: NTP no recibio una respuesta.");
             }
         }
-        else
-        {
-            ms -= step;
-        }
-
-        vTaskDelay(step / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);

@@ -83,6 +83,10 @@ class DomDomRTCClass
          */
         bool ready;
         /**
+         * Marca de tiempo con la ultima petición
+         */
+        unsigned long LastNTPCheck;
+        /**
          * Ajusta el RTC interno y externo con la nueva fecha y hora
          */
         void adjust(time_t dt);
