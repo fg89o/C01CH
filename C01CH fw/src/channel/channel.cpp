@@ -215,8 +215,7 @@ bool DomDomChannelClass::setTargetmA(float value)
 
     if (value < minimum_mA)
     {
-        value = minimum_mA;
-        Serial.printf("[CHANNEL %d] ERROR: valor pwm menor que el minimo. Valor cambiado a %f\r\n", _channel_num, value);
+        Serial.printf("[CHANNEL %d] WARN: el valor %f menor que el minimo (%f).\r\n", _channel_num, value, minimum_mA);
     }
 
     target_mA = value;
