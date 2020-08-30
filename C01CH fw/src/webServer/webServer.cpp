@@ -333,6 +333,7 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     obj["max_mA"] = DomDomChannel.maximum_mA;
     obj["min_mA"] = DomDomChannel.minimum_mA;
     obj["max_volts"] = DomDomChannel.target_V;
+    obj["dac_pwm"] = DomDomChannel.curr_dac_pwm;
     obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
 
     // float volts = DomDomChannel.getBusVoltage_V();

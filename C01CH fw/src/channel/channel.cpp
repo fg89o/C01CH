@@ -138,7 +138,19 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
             float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
+            
+            // Si el objetivo son 0 voltios quitamos la histeresis
+            if (DomDomChannel.target_V == 0)
+            {
+                v_histeresis = 0;
+            }
 
+            // si el objetivo son 0 mA quitamos la histeresis
+            if (DomDomChannel.target_mA == 0)
+            {
+                mA_histeresis = 0;
+            }
+            
             bool voltsInRange = (volts < (DomDomChannel.target_V + v_histeresis) && volts > (DomDomChannel.target_V - v_histeresis));
             bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
 
