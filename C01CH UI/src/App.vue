@@ -1,18 +1,18 @@
 <template>
   <div id="app">
     <v-app>
-        <v-navigation-drawer v-model="drawer" app mobile-break-point="1024">
+        <v-navigation-drawer v-model="drawer" app mobile-breakpoint="1024">
           <v-list class="text-center d-flex flex-column justify-center">
-            <v-list-item-content>
+            <v-list-item-content class="pb-0">
               <v-list-item-title class="title">
                 <h1><span class="blue--text">Dom</span>Dom</h1>
               </v-list-item-title>
-              <v-list-item-avatar size="64" class="d-block">
-                <v-img src=""></v-img>
-              </v-list-item-avatar>
-              <v-list-item-subtitle>
-                C01CH
-              </v-list-item-subtitle>
+              <v-list-item-title class="title" style="color: #adb5bd; font-size:0.75rem !important">
+                {{ datenow }}
+              </v-list-item-title>
+              <v-list-item-title class="title" style="color: #adb5bd; font-size:0.7rem !important">
+                version {{$version}}
+              </v-list-item-title>
             </v-list-item-content>
           </v-list>
           <v-divider></v-divider>
@@ -30,8 +30,8 @@
                 :to="item.link"
                 >
                   <v-list-item-icon>
-                        <v-icon v-text="item.icon"></v-icon>
-                    </v-list-item-icon>
+                      <v-icon v-text="item.icon"></v-icon>
+                  </v-list-item-icon>
                   <v-list-item-content>
                     <v-list-item-title v-text="item.title"></v-list-item-title>
                   </v-list-item-content>
@@ -41,6 +41,9 @@
             </div>
             </v-list-item-group>
           </v-list>
+          <v-footer inset absolute>
+            <div class="text-caption">Óscar Fernández &copy; 2020</div>
+          </v-footer> 
         </v-navigation-drawer>
         <v-app-bar app color="rgb(51,51,51)" dense dark flat >
             <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
@@ -58,15 +61,9 @@
         </v-app-bar>
       
         <!-- Sizes your content based upon application components -->
-        <v-content style="background-image: linear-gradient(to bottom, #f5f5f5 0%, white 100%);">
+        <v-main style="background-image: linear-gradient(to bottom, #f5f5f5 0%, white 100%);">
           <router-view></router-view>
-        </v-content>
-      
-        <v-footer app>
-            <div>{{ datenow }}</div>
-            <v-spacer></v-spacer>
-            <div>Óscar Fernández &copy; 2020</div>
-        </v-footer>
+        </v-main>
       </v-app>
   </div>
 </template>
@@ -76,17 +73,17 @@ export default {
   name: 'App',
 
   data: () => ({
-    drawer: true,
+    drawer: (window.innerWidth > 1024),
     date: null, 
     datenow: '',
     appTitle: 'DomDom',
     menu_items: [
         {
-          text: 'GENERAL',
+          text: 'NAVEGACIÓN',
           items: [
-            { title: 'Inicio', icon: 'mdi-view-dashboard', link: '/' },
+            { title: 'Inicio', icon: 'mdi-home-variant-outline', link: '/' },
             { title: 'Programación', icon: 'mdi-clock-outline', link: '/programacion' },
-            { title: 'Manual', icon: 'mdi-tune', link: '/manual' },
+            { title: 'Aj. Manual', icon: 'mdi-tune', link: '/manual' },
             { title: 'Ventilador', icon: 'mdi-fan', link: '/fan' }
           ]
         },
@@ -108,6 +105,7 @@ export default {
 
   methods: {
     time() {
+
         if (this.date != null)
         {
             var self = this
@@ -118,8 +116,9 @@ export default {
             var year = this.date.getUTCFullYear().toString();
             var hour = this.date.getUTCHours().toString().padStart(2,"0");
             var minute = this.date.getUTCMinutes().toString().padStart(2,"0");
+            var seconds = this.date.getSeconds().toString().padStart(2,"0");
 
-            this.datenow = day + "/" + month + "/" + year + " " + hour + ":" + minute;
+            this.datenow = day + "/" + month + "/" + year + " " + hour + ":" + minute + ":" + seconds;
         }
 
 
@@ -127,7 +126,7 @@ export default {
     },
     requestTime(){
       var self = this;
-      this.$http.get(this.$remoteServer + 'rtc').then(function(response){
+      this.$http.get(process.env.VUE_APP_REMOTESERVER + 'rtc').then(function(response){
           self.date = new Date(parseInt(response.body["unixtime"]) * 1000);
 
           if (self.timeTimeout != null)

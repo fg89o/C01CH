@@ -8,8 +8,8 @@ Vue.use(VueResource);
 
 Vue.config.productionTip = false
 
-Vue.prototype.$remoteServer = '';
-//Vue.prototype.$remoteServer = 'http://192.168.1.248/';
+Vue.prototype.$version = "1.1.0"
+
 
 new Vue({
   router,

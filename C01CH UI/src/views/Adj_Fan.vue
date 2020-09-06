@@ -72,7 +72,7 @@
                     </v-input>
                 </v-col>
                 <v-col cols="4" class="d-flex justify-end" >
-                    <v-switch v-model="modo_automatico" flat inset></v-switch>
+                    <v-switch v-model="modo_automatico" flat inset @change="save()"></v-switch>
                 </v-col>
             </v-row>
             <v-row class="my-6">
@@ -88,7 +88,7 @@
               >
                 <template v-slot:prepend>
                   <v-icon
-                    @click="decrement(i)"
+                    @click="decrement()"
                   >
                     mdi-minus
                   </v-icon>
@@ -96,7 +96,7 @@
         
                 <template v-slot:append>
                   <v-icon
-                    @click="increment(i)"
+                    @click="increment()"
                   >
                     mdi-plus
                   </v-icon>
@@ -207,7 +207,7 @@ export default {
     request()
     {
       var self = this;
-      this.$http.get(this.$remoteServer + 'fansettings').then(function(response)
+      this.$http.get(process.env.VUE_APP_REMOTESERVER + 'fansettings').then(function(response)
       {
 
         self.modo_automatico = response.body["enabled"];
@@ -302,7 +302,7 @@ export default {
         }
       }
 
-      this.$http.post(this.$remoteServer + 'fansettings', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}).then(function( /* response */)
+      this.$http.post(process.env.VUE_APP_REMOTESERVER + 'fansettings', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}).then(function( /* response */)
       {
         self.request();
       }, function(){
@@ -310,6 +310,20 @@ export default {
           self.loading = false;
       });
 
+    },
+    decrement()
+    {
+      if (this.nuevo_porcentaje > 0)
+      {
+        this.nuevo_porcentaje--;
+      }
+    },
+    increment()
+    {
+      if (this.nuevo_porcentaje < 100)
+      {
+        this.nuevo_porcentaje++;
+      }
     }
   },
   created: function(){

@@ -72,7 +72,7 @@ export default {
         var obj = {
           reset: true
         }
-        this.$http.post(this.$remoteServer + 'reset', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}})
+        this.$http.post(process.env.VUE_APP_REMOTESERVER + 'reset', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}})
         .then(function(/* response */){
           self.success = true;
         }, function(){

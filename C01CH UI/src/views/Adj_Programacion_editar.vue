@@ -61,12 +61,12 @@
                 </v-time-picker>
               </v-dialog>
             </v-col>
-            <v-col cols="12" md="7" class="offset-md-1">
+            <v-col cols="12" md="7" class="offset-md-1 float-right">
               <v-switch v-model="schedulePoint.fade" label="Progresivo"></v-switch>
             </v-col>
           </v-row>
           <v-row>
-            <v-col cols="12" md="6" lg="6" v-for="(canal, i) in canales" :key="i">
+            <v-col cols="12" v-for="(canal, i) in canales" :key="i">
               <v-row>
                 <v-col cols="12" class="d-flex justify-space-between">
                   <p class="mx-0 my-0" >Canal: {{i+1}}</p>
@@ -154,9 +154,10 @@ export default {
       var tmpCanales = [];
       for(var i = 0; i < this.canales.length; i++)
       {
-        var rango = this.canales[i].max_pwm - this.canales[i].min_pwm;
-        var valor = this.canales[i].min_pwm + (rango * this.porcentaje[i] / 100);
-        this.canales[i].current_pwm = valor;
+        var rango = this.canales[i].max_mA - this.canales[i].min_mA;
+        var valor = this.canales[i].min_mA + (rango * this.porcentaje[i] / 100);
+        
+        this.canales[i].target_mA = valor;
 
         this.canales[i].porcentaje = this.porcentaje[i];
         tmpCanales.push(this.canales[i]);
@@ -166,7 +167,7 @@ export default {
         canales: tmpCanales
       }
 
-      this.$http.post(this.$remoteServer + 'test', JSON.stringify(obj), {
+      this.$http.post(process.env.VUE_APP_REMOTESERVER + 'test', JSON.stringify(obj), {
         headers: {"Content-Type": "text/plain"}
       }).then(function(/* response */)
       {
@@ -185,7 +186,7 @@ export default {
       
       self.porcentaje = [];
 
-      this.$http.get(this.$remoteServer + 'canales').then(function(response)
+      this.$http.get(process.env.VUE_APP_REMOTESERVER + 'canales').then(function(response)
       {
         self.canales = response.body["canales"];
 
@@ -256,8 +257,18 @@ export default {
     {
       var blancos = [];
       var color = [];
+      var potencia_es_cero = true;
 
       for (var i = 0; i < this.canales.length; i++)
+      {
+        if (this.porcentaje[i] != 0)
+        {
+          potencia_es_cero = false;
+          break;
+        }
+      }
+
+      for (i = 0; i < this.canales.length; i++)
       {
         for (var j = 0; j < this.canales[i].leds.length; j++)
         {
@@ -265,14 +276,14 @@ export default {
           {
             blancos.push({
               temperatura: this.canales[i].leds[j].K,
-              potencia: this.canales[i].leds[j].W * this.porcentaje[i] / 100
+              potencia: potencia_es_cero ? this.canales[i].leds[j].W : this.canales[i].leds[j].W * this.porcentaje[i] / 100
             });
           }
           else
           {
             color.push({
               nm: this.canales[i].leds[j].nm,
-              potencia: this.canales[i].leds[j].W * this.porcentaje[i] / 100
+              potencia: potencia_es_cero ? this.canales[i].leds[j].W : this.canales[i].leds[j].W * this.porcentaje[i] / 100
             });
           }
         }

@@ -45,15 +45,19 @@
       </v-alert>
       <div class="d-flex flex-column justify-center">
         <div class="d-block">
-          <v-file-input small-chips show-size counter label="Seleccione los ficheros de la nueva version" v-model="files"></v-file-input>
+          <v-file-input :class="inprogress ? 'd-none' : ''" small-chips show-size counter label="Seleccione los ficheros de la nueva version" v-model="files"></v-file-input>
         </div>
         <div class="text-center" v-if="inprogress">
           <v-progress-linear
             color="light-blue"
-            height="10"
-            :value="progress_value"
+            height="25"
+            v-model="progress_value"
             striped
-          ></v-progress-linear>
+          >
+            <template v-slot="{ value }">
+              <strong>{{ Math.ceil(value) }}%</strong>
+            </template>
+          </v-progress-linear>
         </div>
         <v-btn v-if="!inprogress" :disabled="this.files == null" :dark="true" large v-on:click="update()" color="#2196F3">Actualizar</v-btn>
       </div>
@@ -88,7 +92,7 @@ export default {
 
         $.ajax(
         {
-          url: '/update',
+          url: process.env.VUE_APP_REMOTESERVER + 'update',
           type: 'POST',              
           data: data,
           contentType: false,                  
@@ -100,21 +104,22 @@ export default {
             var xhr = new window.XMLHttpRequest();
             xhr.upload.addEventListener('progress', function(evt) 
             {
+              console.log(evt);
               if (evt.lengthComputable) 
               {
                 self.inprogress = true;
-                var per = evt.loaded / evt.total;
+                var per = evt.loaded / evt.total * 100;
                 self.progress_value = per;
               }
             }, false);
+
             return xhr;
           },                              
           success:function(/*d, s*/) 
           {  
-            self.inprogress = true;
+            self.inprogress = false;
             self.success = true;
 
-            self.progress_value = 0;
             console.log('success!')
 
             window.setTimeout(function(){

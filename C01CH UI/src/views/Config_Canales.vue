@@ -65,6 +65,18 @@
           </v-col>
         </v-row>
         <v-row>
+          <v-col cols="8">
+            <v-input
+                :messages="['Opción para resetear los valores máximos detectados de voltios, corriente y potencia']"
+            >
+                Valores máximos
+            </v-input>
+          </v-col>
+          <v-col cols="4" class="d-flex justify-end" >
+              <v-btn outlined color="primary" v-on:click="resetMax()">Reset</v-btn>
+          </v-col>
+        </v-row>
+        <v-row>
           <v-col cols="6" sm="3">
             <v-text-field
                 v-model="item.target_mA"
@@ -176,6 +188,19 @@ export default {
         error: false
     }),
     methods: {
+      resetMax()
+      {
+        var self = this;
+        var obj = {
+          reset: true
+        }
+        this.$http.post(process.env.VUE_APP_REMOTESERVER + 'resetMaximos', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}})
+        .then(function(/* response */){
+          self.success = true;
+        }, function(){
+            self.error = true;
+        });
+      },
       borrar( num, led)
       {
         console.log(num + " " + led);
@@ -195,7 +220,7 @@ export default {
       {
         var self = this;
 
-        this.$http.get(this.$remoteServer + 'canales').then(function(response){
+        this.$http.get(process.env.VUE_APP_REMOTESERVER + 'canales').then(function(response){
           self.canales = response.body["canales"];
           self.loading = false;
         }, function(){
@@ -220,7 +245,7 @@ export default {
           canales: self.canales
         }
         
-        this.$http.post(this.$remoteServer + 'canales', JSON.stringify(obj),{ headers: {"Content-Type": "text/plain"}}).then(function(/* response */){
+        this.$http.post(process.env.VUE_APP_REMOTESERVER + 'canales', JSON.stringify(obj),{ headers: {"Content-Type": "text/plain"}}).then(function(/* response */){
           self.success = true;
         }, function(){
             self.error = true;

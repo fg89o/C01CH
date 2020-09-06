@@ -236,7 +236,7 @@ export default {
             self.error = false;
             self.success = false;
 
-            this.$http.get(this.$remoteServer + 'red').then(function(response){
+            this.$http.get(process.env.VUE_APP_REMOTESERVER + 'red').then(function(response){
                 self.mDNSEnabled = response.body["mdns_enabled"];
                 self.mDNSHostname = response.body["mdns_hostname"];
                 self.mode = response.body["mode"];
@@ -273,7 +273,7 @@ export default {
                 obj["pwd"] = self.pwd;
             }
 
-            this.$http.post(this.$remoteServer + 'red', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}
+            this.$http.post(process.env.VUE_APP_REMOTESERVER + 'red', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}
             ).then(function(/* response */){ 
                 console.log("Cambios gaurdados correctamente!");
                 self.getInfo();

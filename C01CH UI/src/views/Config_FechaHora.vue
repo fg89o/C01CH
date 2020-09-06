@@ -214,7 +214,7 @@ export default {
             }
             
             var self = this;
-            this.$http.post(this.$remoteServer + 'rtc', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}
+            this.$http.post(process.env.VUE_APP_REMOTESERVER + 'rtc', JSON.stringify(obj), { headers: {"Content-Type": "text/plain"}}
             ).then(function(/* response */){ 
                 console.log("Fecha cambiada correctamente!");
                 self.requestInfo();
@@ -231,7 +231,7 @@ export default {
             self.error = false;
             self.success = false;
 
-            this.$http.get(this.$remoteServer + 'rtc').then(function(response){
+            this.$http.get(process.env.VUE_APP_REMOTESERVER + 'rtc').then(function(response){
                 self.ntpEnabled = response.body["enabled"];
                 self.timezone = response.body["timezone"];
                 self.ntpServername = response.body["servername"];

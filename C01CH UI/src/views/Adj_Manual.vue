@@ -28,8 +28,18 @@
           class="mx-auto"
       ></v-skeleton-loader>
       </div>
+      <v-alert
+        border="bottom"
+        colored-border
+        type="warning"
+        elevation="2"
+        v-if="!loading && ledsCount == 0"
+      >
+      Rellene la información de los led para mostrar la gráfica del espectro
+      <v-btn link to="/canales" class="float-right" text color="primary">Ir a configuración</v-btn>
+      </v-alert>
       <v-row>
-        <v-col cols="12" lg="6">
+        <v-col :class="ledsCount == 0 ? 'd-none' : ''" cols="12" lg="6">
           <canvas id="espectro-chart"></canvas>
         </v-col>
         <v-col cols="12" lg="6">
@@ -52,14 +62,13 @@
               </v-col>
             </v-row>
             <v-row v-if="modo_manual">
-              <v-col cols="12" sm="6" lg="6" v-for="(canal, i) in canales" :key="i">
+              <v-col cols="12" v-for="(canal, i) in canales" :key="i">
                 <v-row>
                   <v-col cols="12" class="d-flex justify-space-between">
                     <p class="mx-0 my-0" >Canal: {{i+1}}</p>
-                    <span
-                      class=""
-                      v-text="porcentaje[i] +'%'"
-                    ></span>
+                    <span>
+                      {{porcentaje[i]}}%
+                    </span>
                   </v-col>
                   <v-col cols="12 py-0">
                     <v-slider
@@ -72,15 +81,13 @@
                       always-dirty
                     >
                       <template v-slot:prepend>
-                        <v-icon
-                        >
+                        <v-icon @click="decrement(i)">
                           mdi-minus
                         </v-icon>
                       </template>
               
                       <template v-slot:append>
-                        <v-icon
-                        >
+                        <v-icon @click="increment(i)">
                           mdi-plus
                         </v-icon>
                       </template>
@@ -107,7 +114,8 @@ export default {
       canales: [],
       modo_manual: false,
       loading: true,
-      porcentaje: [],
+      porcentaje: {},
+      ledsCount: 0
   }),
   methods: {
     createChart(chartId, chartData) {
@@ -158,13 +166,19 @@ export default {
         }
       });
     },
-    decrement()
+    decrement(index)
     {
-      this.porcentaje[0]--;
+      if (this.porcentaje[index] > 0)
+      {
+        this.$set(this.porcentaje,index, this.porcentaje[index]-1);
+      }
     },
-    increment()
+    increment(index)
     {
-      this.porcentaje[0]++;
+      if (this.porcentaje[index] < 100)
+      {
+        this.$set(this.porcentaje,index, this.porcentaje[index]+1);
+      }
     },
     send()
     {
@@ -193,7 +207,7 @@ export default {
         canales: tmpCanales
       }
 
-      this.$http.post(this.$remoteServer + 'canales', JSON.stringify(obj), {
+      this.$http.post(process.env.VUE_APP_REMOTESERVER + 'canales', JSON.stringify(obj), {
         headers: {
             "Content-Type": 'text/plain'
         }
@@ -214,11 +228,10 @@ export default {
     {
       var self = this;
       
-      this.$http.get(this.$remoteServer + 'canales').then(function(response)
+      this.$http.get(process.env.VUE_APP_REMOTESERVER + 'canales').then(function(response)
       {
         self.modo_manual = !response.body["modo_programado"];
         self.canales = response.body["canales"];
-        self.porcentaje = [];
 
         for (var i = 0; i < self.canales.length; i++)
         {
@@ -227,7 +240,7 @@ export default {
 
           self.canales[i].porcentaje = Math.round(valor * 100 / rango);
 
-          self.porcentaje.push(self.canales[i].porcentaje);
+          this.$set(self.porcentaje,i,self.canales[i].porcentaje);
         }
 
         this.updateChart();
@@ -241,25 +254,37 @@ export default {
     },
     updateChart()
     {
+      this.ledsCount = 0;
       var blancos = [];
       var color = [];
 
-      for (var i = 0; i < this.canales.length; i++)
+      var potencia_es_cero = true;
+      for (var i = 0; i< this.canales.length; i++){
+        if (this.canales[i].porcentaje > 0)
+        {
+          potencia_es_cero = false;
+          break;
+        }
+      }
+
+      for ( i = 0; i < this.canales.length; i++)
       {
         for (var j = 0; j < this.canales[i].leds.length; j++)
         {
           if (this.canales[i].leds[j].K > 0)
           {
+            this.ledsCount++;
             blancos.push({
               temperatura: this.canales[i].leds[j].K,
-              potencia: this.canales[i].leds[j].W * this.canales[i].porcentaje / 100
+              potencia: potencia_es_cero ? this.canales[i].leds[j].W : this.canales[i].leds[j].W * this.canales[i].porcentaje / 100
             });
           }
           else
           {
+            this.ledsCount++;
             color.push({
               nm: this.canales[i].leds[j].nm,
-              potencia: this.canales[i].leds[j].W * this.canales[i].porcentaje / 100
+              potencia: potencia_es_cero ? this.canales[i].leds[j].W : this.canales[i].leds[j].W * this.canales[i].porcentaje / 100
             });
           }
         }
@@ -382,7 +407,7 @@ export default {
       }
       
       return m + ')/' + w ;
-		}
+    }
   }, 
   created: function(){
     this.request();

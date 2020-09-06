@@ -38,6 +38,7 @@
           <v-data-table
             :headers="headers"
             :items="items"
+            dense 
           >
             <template v-slot:top>
               <v-toolbar flat color="white">
@@ -46,7 +47,7 @@
                 <v-btn color="primary" dark class="mb-2" @click="newItem()">Añadir</v-btn>
               </v-toolbar>
             </template>
-            <template v-slot:item.actions="{ item }">
+            <template v-slot:[`item.actions`]="{ item }">
               <v-icon
                 small
                 class="mr-2"
@@ -63,8 +64,8 @@
                 mdi-delete
               </v-icon>
             </template>
-            <template v-slot:item.fade="{ item }">
-              <v-simple-checkbox readonly disable v-model="item.fade"></v-simple-checkbox>
+            <template v-slot:[`item.fade`]="{ item }">
+              <v-simple-checkbox disabled v-model="item.fade"></v-simple-checkbox>
             </template>
           </v-data-table>
         </v-col>
@@ -254,7 +255,7 @@ export default {
         }
       }
 
-      this.$http.post(this.$remoteServer + 'schedule', JSON.stringify(obj), {
+      this.$http.post(process.env.VUE_APP_REMOTESERVER + 'schedule', JSON.stringify(obj), {
         headers: {
             "Content-Type": 'text/plain'
         }
@@ -269,23 +270,28 @@ export default {
     request(){
       var self = this;
       
-      this.$http.get(this.$remoteServer + 'schedule').then(function(response)
+      this.$http.get(process.env.VUE_APP_REMOTESERVER + 'schedule').then(function(response)
       {
         self.items = [];
         self.headers = [];
 
-        self.headers.push({ text: 'Nº', value: 'id' });
         self.headers.push({
             text: 'Fecha / Hora',
             align: 'start',
-            sortable: false,
+            sortable: true,
             value: 'fechaHora',
         }),
         self.headers.push({ text: 'Progresivo', value: 'fade', sortable: false });
+        
         var i;
         for ( i = 0; i < response.body["channel_size"]; i++)
         {
-          self.headers.push({ text: '#' + (i+1), value: 'canal'  + (i+1), sortable: false});
+          self.headers.push({ 
+            text: 'Canal #' + (i+1), 
+            value: 'canal'  + (i+1), 
+            align: 'end',
+            sortable: false
+          });
         }
         self.headers.push({ text: 'Acciones', value: 'actions', sortable: false });
 
