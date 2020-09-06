@@ -122,7 +122,7 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
     float prev_targetVolts = -1;
     float prev_targetmA = -1;
-    DomDomChannel.current_stable = false;
+    DomDomChannel.is_current_stable = false;
 
     while(DomDomChannel.started())
     {
@@ -133,20 +133,20 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
             {
                 prev_targetVolts = DomDomChannel.target_V;
                 prev_targetmA = DomDomChannel.target_mA;
-                DomDomChannel.current_stable = false;
+                DomDomChannel.is_current_stable = false;
             } 
 
             float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
             float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
             
-            // Si el objetivo son 0 voltios quitamos la histeresis
-            if (DomDomChannel.target_V == 0)
+            // Si el objetivo es menor o igual  0 voltios quitamos la histeresis
+            if (DomDomChannel.target_V <= 0)
             {
                 v_histeresis = 0;
             }
 
-            // si el objetivo son 0 mA quitamos la histeresis
-            if (DomDomChannel.target_mA == 0)
+            // si el objetivo es menor o igual 0 mA quitamos la histeresis
+            if (DomDomChannel.target_mA <= 0)
             {
                 mA_histeresis = 0;
             }
@@ -154,21 +154,39 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
             bool voltsInRange = (volts < (DomDomChannel.target_V + v_histeresis) && volts > (DomDomChannel.target_V - v_histeresis));
             bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
 
-            DomDomChannel.busCurrent_mA = amps;
-            DomDomChannel.busVoltaje_V = volts;
+            DomDomChannel.lastBusCurrent_mA = amps;
+            DomDomChannel.lastBusVoltaje_V = volts;
+
+            float power = amps * volts;
+            power = power < 0 ? 0 : power;
+
+            if (DomDomChannel.busPowerPeak_W < power)
+            {
+                DomDomChannel.busPowerPeak_W = power;   
+            }
+
+            if (DomDomChannel.busCurrentPeak_mA < amps)
+            {
+                DomDomChannel.busCurrentPeak_mA = amps;
+            }
+
+            if (DomDomChannel.busVoltagePeak_V < volts)
+            {
+                DomDomChannel.busVoltagePeak_V = volts;
+            }
 
             if (voltsInRange && amps < DomDomChannel.target_mA + mA_histeresis)
             {
-                DomDomChannel.current_stable = true;
+                DomDomChannel.is_current_stable = true;
                 Serial.printf("[CHANNEL %d] Salida estabilizada por voltios\r\n", DomDomChannel.getNum());
             }
             else if (mAInRange && volts < DomDomChannel.target_V + v_histeresis )
             {
-                DomDomChannel.current_stable = true;
+                DomDomChannel.is_current_stable = true;
                 Serial.printf("[CHANNEL %d] Salida estabilizada por amperios\r\n", DomDomChannel.getNum());
             }
 
-            if (!DomDomChannel.current_stable)
+            if (!DomDomChannel.is_current_stable)
             {
                 if ((amps > DomDomChannel.target_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
                 {
@@ -231,7 +249,7 @@ bool DomDomChannelClass::setTargetmA(float value)
     }
 
     target_mA = value;
-    current_stable = false;
+    is_current_stable = false;
 
     Serial.printf("[Channel %d] Target mA: %f\n", _channel_num, target_mA);
     

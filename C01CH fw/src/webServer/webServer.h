@@ -95,6 +95,10 @@ class DomDomWebServerClass
          * Acepta un JSON para configurar el ventilador
          */
         static void setFanSettings(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total);
+        /**
+         * Acepta un JSON que con la estructura correcta provoca un reinicio en equipo.
+         */
+        static void setResetMaxValues(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total);
 };
 
 #if !defined(NO_GLOBAL_INSTANCES)

@@ -82,11 +82,23 @@ class DomDomChannelClass
         /**
          * Ultimo voltaje leido en el bus
          */
-        float busVoltaje_V;
+        float lastBusVoltaje_V = 0;
+        /**
+         * Voltaje maximo detectado en el bus
+         */
+        float busVoltagePeak_V = 0;
         /**
          * Ultima corriente leida en el bbus
          */
-        float busCurrent_mA;
+        float lastBusCurrent_mA = 0;
+        /**
+         * Corriente máxima detectada
+         */
+        float busCurrentPeak_mA = 0;
+        /**
+         * Potencia máxima detectada
+         */
+        float busPowerPeak_W = 0;
         /**
          * Indica si se esta controlando el canal
          */
@@ -122,7 +134,7 @@ class DomDomChannelClass
         /**
          * Indica si la corriente de salida se encuentra estable
          */
-        bool current_stable;
+        bool is_current_stable;
         /**
          * Devuelve el numero del canal en solo lectura.
          */

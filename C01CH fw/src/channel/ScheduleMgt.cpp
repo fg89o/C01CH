@@ -296,10 +296,7 @@ void DomDomScheduleMgtClass::update()
         porcentaje = roundUp(porcentaje, CHANNEL_PERCENTAGE_MIN_STEP);
     }
 
-    if (porcentaje != 0)
-    {
-        mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * (double)(porcentaje/100.0f));
-    }
+    mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * (double)(porcentaje/100.0f));
 
     DomDomChannel.setTargetmA(mA);
 }

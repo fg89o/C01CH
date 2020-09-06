@@ -101,6 +101,9 @@ void DomDomWebServerClass::begin()
     // AJAX para realizar un test de color
     _server->on("/test", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setTest);
 
+    // AJAX para el restablecer valores de fbrica
+    _server->on("/resetMaximos", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setResetMaxValues);
+
     // AJAX para actualizar el firmware
      _server->on("/update", HTTP_POST, [&](AsyncWebServerRequest *request) {
         // the request handler is triggered after the upload has finished... 
@@ -114,7 +117,7 @@ void DomDomWebServerClass::begin()
         
         DomDomChannel.end();
 
-        delay(5000);
+        delay(2000);
         
         ESP.restart();
 
@@ -136,8 +139,8 @@ void DomDomWebServerClass::begin()
             Serial.printf("%s -> %s\r\n", filename.c_str(), (cmd == U_SPIFFS) ? "U_SPIFFS" : "U_FLASH" );
 
             if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) { // Start with max available size
-            Update.printError(Serial);
-            return request->send(400, "text/plain", "OTA could not begin");
+                Update.printError(Serial);
+                return request->send(400, "text/plain", "OTA could not begin");
             }
         }
 
@@ -336,20 +339,17 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     obj["dac_pwm"] = DomDomChannel.curr_dac_pwm;
     obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
 
-    // float volts = DomDomChannel.getBusVoltage_V();
-    // float amps = DomDomChannel.getCurrent_mA();
+    String str_lvolts = String(DomDomChannel.lastBusVoltaje_V,2);
+    String str_lamps = String(DomDomChannel.lastBusCurrent_mA,3);
+    String str_pamps = String(DomDomChannel.busCurrentPeak_mA,3);
+    String str_pvolts = String(DomDomChannel.busVoltagePeak_V,2);
+    String str_ppower = String(DomDomChannel.busPowerPeak_W,2);
 
-    float volts = DomDomChannel.busVoltaje_V;
-    float amps = DomDomChannel.busCurrent_mA;
-
-    String str_volts = String(volts,2);
-    String str_amps = String(amps,3);
-
-    Serial.printf("Volts: %s\r\n", str_volts.c_str());
-    Serial.printf("Amps: %s\r\n", str_amps.c_str());
-
-    obj["bus_volts"] = serialized(str_volts);
-    obj["bus_miliamps"] = serialized(str_amps);
+    obj["bus_volts"] = serialized(str_lvolts);
+    obj["bus_miliamps"] = serialized(str_lamps);
+    obj["bus_volts_peak"] = serialized(str_pvolts);
+    obj["bus_miliamps_peak"] = serialized(str_pamps);
+    obj["bus_power_peak"] = serialized(str_ppower);
     
     JsonArray leds = obj.createNestedArray("leds");
     for (int j = 0; j < DomDomChannel.leds.size(); j++)
@@ -462,6 +462,37 @@ void DomDomWebServerClass::setRestart(AsyncWebServerRequest * request, uint8_t *
             DomDomStatusLedControl.blink(10);
 
             ESP.restart();
+        }
+    }
+
+    request->send(400);
+}
+
+void DomDomWebServerClass::setResetMaxValues(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+    String bodyContent = GetBodyContent(data, len);
+    
+    DynamicJsonDocument doc(1024);;
+    DeserializationError err = deserializeJson(doc, bodyContent);
+
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->addHeader("Access-Control-Allow-Origin", "*");
+
+    if (err) { 
+        request->send(400); 
+        return;
+    }
+
+    if (doc.containsKey("reset"))
+    {
+        if (doc["reset"])
+        {
+            
+            DomDomChannel.busPowerPeak_W = 0;
+            DomDomChannel.busCurrentPeak_mA = 0;
+            DomDomChannel.busVoltagePeak_V = 0;
+
+            request->send(response);
         }
     }
 
