@@ -116,9 +116,9 @@ class DomDomChannelClass
          */
         float minimum_mA;
         /**
-         * Voltaje objetivo
+         * Voltaje maximo para el canal
          */
-        float target_V;
+        float maximum_V;
         /**
          * Corriente objetivo
          */

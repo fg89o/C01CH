@@ -35,7 +35,7 @@ DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
 
     maximum_mA = 100.0f;
     minimum_mA = 0.0f;
-    target_V = 0.0f;
+    maximum_V = 0.0f;
 
     INA_device_index = UINT8_MAX;
     _INA_address = INA_address;
@@ -113,88 +113,86 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
     int channels_pin[CHANNEL_SIZE] = CHANNEL_CURRENT_PIN;
     int channel = channels_pin[DomDomChannel.getNum()];
 
-    float v_histeresis = 0.10;
-    float mA_histeresis = 5;
-
     unsigned long prev_millis_info = 0;
 
     dacWrite(channel, curr_pwm);
 
-    float prev_targetVolts = -1;
+    float prev_maxV = -1;
     float prev_targetmA = -1;
+
     DomDomChannel.is_current_stable = false;
+    int8_t pwm_dir = 0;
 
     while(DomDomChannel.started())
     {
         if (DomDomChannel.INA.conversionFinished(0))
         {
-            // Si los voltios  o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
-            if (DomDomChannel.target_V != prev_targetVolts || DomDomChannel.target_mA != prev_targetmA)
+            // Si los voltios o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
+            if (DomDomChannel.maximum_V != prev_maxV || DomDomChannel.target_mA != prev_targetmA)
             {
-                prev_targetVolts = DomDomChannel.target_V;
+                prev_maxV = DomDomChannel.maximum_V;
                 prev_targetmA = DomDomChannel.target_mA;
                 DomDomChannel.is_current_stable = false;
+                pwm_dir = 0;
             } 
 
             float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
             float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
-            
-            // Si el objetivo es menor o igual  0 voltios quitamos la histeresis
-            if (DomDomChannel.target_V <= 0)
-            {
-                v_histeresis = 0;
-            }
-
-            // si el objetivo es menor o igual 0 mA quitamos la histeresis
-            if (DomDomChannel.target_mA <= 0)
-            {
-                mA_histeresis = 0;
-            }
-            
-            bool voltsInRange = (volts < (DomDomChannel.target_V + v_histeresis) && volts > (DomDomChannel.target_V - v_histeresis));
-            bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
+            float power = amps * volts;
+            power = power < 0 ? 0 : power;
 
             DomDomChannel.lastBusCurrent_mA = amps;
             DomDomChannel.lastBusVoltaje_V = volts;
 
-            float power = amps * volts;
-            power = power < 0 ? 0 : power;
+            // Guardamos los maximos
+            DomDomChannel.busPowerPeak_W = DomDomChannel.busPowerPeak_W > power ? DomDomChannel.busPowerPeak_W : power;
+            DomDomChannel.busCurrentPeak_mA = DomDomChannel.busCurrentPeak_mA > amps ? DomDomChannel.busCurrentPeak_mA : amps;
+            DomDomChannel.busVoltagePeak_V = DomDomChannel.busVoltagePeak_V > volts ? DomDomChannel.busVoltagePeak_V : volts;
 
-            if (DomDomChannel.busPowerPeak_W < power)
+            
+            // Calculamos la histeresis en funcion del valor maximo para la corriente
+            // Establecemos un minimo de 5mA
+            float mA_histeresis = (DomDomChannel.maximum_mA * 0.025);
+            mA_histeresis = mA_histeresis < 5 ? 5 : mA_histeresis;
+            // Comprobamos si la corriente esta en el rango establecido
+            bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
+            if (DomDomChannel.is_current_stable && !mAInRange)
             {
-                DomDomChannel.busPowerPeak_W = power;   
-            }
-
-            if (DomDomChannel.busCurrentPeak_mA < amps)
-            {
-                DomDomChannel.busCurrentPeak_mA = amps;
-            }
-
-            if (DomDomChannel.busVoltagePeak_V < volts)
-            {
-                DomDomChannel.busVoltagePeak_V = volts;
-            }
-
-            if (voltsInRange && amps < DomDomChannel.target_mA + mA_histeresis)
-            {
-                DomDomChannel.is_current_stable = true;
-                Serial.printf("[CHANNEL %d] Salida estabilizada por voltios\r\n", DomDomChannel.getNum());
-            }
-            else if (mAInRange && volts < DomDomChannel.target_V + v_histeresis )
-            {
-                DomDomChannel.is_current_stable = true;
-                Serial.printf("[CHANNEL %d] Salida estabilizada por amperios\r\n", DomDomChannel.getNum());
+                DomDomChannel.is_current_stable = false;
+                pwm_dir = 0;
             }
 
             if (!DomDomChannel.is_current_stable)
             {
-                if ((amps > DomDomChannel.target_mA || volts > DomDomChannel.target_V) && curr_pwm < max_dac_pwm)
+                // Si no hay direccion establecida la establecemos ahora
+                if (pwm_dir == 0)
+                {
+                    pwm_dir = (amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V) ? -1 : 1;
+                }
+
+                // Si estamos aumentando la potencia (pwm_dir == -1), aumentamos hasta que el valor actual sea mayor que el objetivo mas histeresis
+                if (pwm_dir == -1 && (amps <= DomDomChannel.target_mA && volts <= DomDomChannel.maximum_V) &&  curr_pwm > min_dac_pwm)
+                {
+                    dacWrite(channel, --curr_pwm);
+                }
+
+                // Si estamos aumentando la potencia y nos hemos pasado usamos el valor antiguo
+                if (pwm_dir == -1 && (amps > DomDomChannel.target_mA && volts > DomDomChannel.maximum_V))
+                {
+                    dacWrite(channel, ++curr_pwm);
+                    DomDomChannel.is_current_stable = true;
+                }
+                
+                // Si estamos disminuyendo la potencia (pwm_dir == 1), disminuimos hasta que el valor actual sea menor que el objetivo menos histeresis
+                if ((pwm_dir == 1) && (amps > DomDomChannel.target_mA || volts > DomDomChannel.maximum_V) && curr_pwm < max_dac_pwm)
                 {
                     dacWrite(channel, ++curr_pwm);
                 }
-                if ((amps < DomDomChannel.target_mA && volts < DomDomChannel.target_V) &&  curr_pwm > min_dac_pwm)
+
+                //Si estamos dismnuyendo la potencia y nos hemos pasado usamos el valor actual
+                if ((pwm_dir == 1) && (amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V))
                 {
-                    dacWrite(channel, --curr_pwm);
+                    DomDomChannel.is_current_stable = true;
                 }
 
                 DomDomChannel.curr_dac_pwm = curr_pwm;
@@ -202,7 +200,7 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
 
             if (millis() - prev_millis_info > CHANNEL_BUS_REFRESH_INTERVAL )
             {
-                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.target_V);
+                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.maximum_V);
                 Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.target_mA);
                 Serial.printf("Bus voltage: %fV\r\n", volts);
                 Serial.printf("Bus miliamps: %fmA\r\n", amps);
@@ -271,7 +269,7 @@ bool DomDomChannelClass::save()
     address += 1;
     EEPROM.writeUShort(address, _INA_address);
     address += 2;
-    EEPROM.writeFloat(address, target_V);
+    EEPROM.writeFloat(address, maximum_V);
     address += 4;
     EEPROM.writeFloat(address, maximum_mA);
     address += 4;
@@ -324,7 +322,7 @@ bool DomDomChannelClass::loadFromEEPROM()
         address += 1;
         _INA_address = EEPROM.readUShort(address);
         address += 2;
-        target_V = EEPROM.readFloat(address);
+        maximum_V = EEPROM.readFloat(address);
         address += 4;
         maximum_mA = EEPROM.readFloat(address);
         address += 4;

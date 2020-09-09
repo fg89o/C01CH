@@ -335,7 +335,7 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     obj["target_mA"] = DomDomChannel.target_mA;
     obj["max_mA"] = DomDomChannel.maximum_mA;
     obj["min_mA"] = DomDomChannel.minimum_mA;
-    obj["max_volts"] = DomDomChannel.target_V;
+    obj["max_volts"] = DomDomChannel.maximum_V;
     obj["dac_pwm"] = DomDomChannel.curr_dac_pwm;
     obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
 
@@ -401,7 +401,7 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
         for(JsonObject canal : canales)
         {
             DomDomChannel.setEnabled(canal["enabled"]);
-            DomDomChannel.target_V = canal["max_volts"];
+            DomDomChannel.maximum_V = canal["max_volts"];
             DomDomChannel.maximum_mA = canal["max_mA"];
             DomDomChannel.minimum_mA = canal["min_mA"];
 
