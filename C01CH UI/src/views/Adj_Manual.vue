@@ -171,6 +171,7 @@ export default {
       if (this.porcentaje[index] > 0)
       {
         this.$set(this.porcentaje,index, this.porcentaje[index]-1);
+        send();
       }
     },
     increment(index)
@@ -178,6 +179,7 @@ export default {
       if (this.porcentaje[index] < 100)
       {
         this.$set(this.porcentaje,index, this.porcentaje[index]+1);
+        send();
       }
     },
     send()
