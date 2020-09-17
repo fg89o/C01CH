@@ -23,6 +23,7 @@
 #include <ESPmDNS.h>
 #include <EEPROM.h>
 #include "configuration.h"
+#include "../log/logger.h"
 
 DomDomWifiClass::DomDomWifiClass()
 {
@@ -31,13 +32,13 @@ DomDomWifiClass::DomDomWifiClass()
 
 bool DomDomWifiClass::begin()
 {
-    Serial.println("Iniciando WiFi");
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Iniciando WiFi...");
 
     ssid = DomDomWifi.readSTASSID();
     pwd = DomDomWifi.readSTAPass();
     if (!(ssid.length() > 1 && ssid.length() < EEPROM_SSID_NAME_LENGTH))
     {
-        Serial.println("...Usando valores wifi por defecto...");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "WIFI", "Usando valores wifi por defecto");
         ssid = WIFI_STA_SSID_NAME;
         pwd = WIFI_STA_PASSWORD;
     }
@@ -46,6 +47,13 @@ bool DomDomWifiClass::begin()
     mDNS_hostname = EEPROM.readString(EEPROM_MDNS_HOSTNAME_ADDRESS);
 
     connect();
+
+    if (!_connected)
+    {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "Iniciando WiFi...ERROR!", ssid.c_str());
+    }else{
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Iniciando WiFi...OK!", ssid.c_str());
+    }
 
     return true;
 }
@@ -56,61 +64,56 @@ void DomDomWifiClass::connect()
     // Si tenemos red WIFI a la que conectarnos lo intentamos
     if (ssid.length() > 0)
     {
-        Serial.printf("Intentando conexion Wifi a %s\n", ssid.c_str());
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Conectando a %s...", ssid.c_str());
         for(int i = 0; i < WIFI_NUM_RETRIES; i++)
         {
             connectSTAWifi();
-            int prev_ms = millis();
-            while(WiFi.status() != WL_CONNECTED && millis() - prev_ms < WIFI_CONNECTION_LATENCY)
-            {
-                if ((millis() - prev_ms) % 1000 == 0)
-                {
-                    Serial.print('_');
-                }
-            }
+            delay(WIFI_CONNECTION_LATENCY);
             
             _connected = WiFi.status() == WL_CONNECTED;
 
             if (!_connected)
             {
-                Serial.print('.');
-                delay(1000);
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "WIFI", "Intento %d de %d fallido", (i+1), WIFI_NUM_RETRIES);
             }else{
-                Serial.print("\n");
-                printWifiInfo();
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "IP: %s", WiFi.localIP().toString().c_str());
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Conectando a %s...OK!", ssid.c_str());
                 break;
             }
         }
 
         if (!_connected)
         {
-            Serial.println("Agotados intentos de conexion!");
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "WIFI", "Conectando a %s...ERROR!", ssid.c_str());
         }
     }
 
     // Si no nos hemos conectado creamos el punto de acceso
     if (!_connected)
     {
-        Serial.print("Creando AP");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Creando AP...");
         for(int i = 0; i < WIFI_NUM_RETRIES; i++)
         {
             _connected = createOwnAPWifi();
 
             if (_connected)
             {
-                Serial.print("\n");
-                printWifiInfo();
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Creando AP...OK!", ssid.c_str());
                 break;
             }
             
-            Serial.print('.');
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "WIFI", "Intento %d de %d fallido", (i+1), WIFI_NUM_RETRIES);
             delay(2000);
+        }
+
+        if (!_connected)
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "WIFI", "Creando AP...ERROR!", ssid.c_str());
         }
     }
     
     if (_connected && mDNS_enabled)
     {
-        Serial.println("Configurando mDNS");
         beginmDNS();
     }
 }
@@ -137,7 +140,7 @@ int DomDomWifiClass::connectSTAWifi()
 
 bool DomDomWifiClass::beginmDNS()
 {
-
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Iniciando mDNS...");
     mDNS_hostname = EEPROM.readString(EEPROM_MDNS_HOSTNAME_ADDRESS);
     if (mDNS_hostname.length() <= 0)
     {
@@ -145,11 +148,13 @@ bool DomDomWifiClass::beginmDNS()
     }
 
     if (!MDNS.begin(mDNS_hostname.c_str())) {
-        Serial.println("Error al configurar el servicio MDNS!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "Iniciando mDNS...ERROR!");
         return false;
     }
 
-    Serial.printf("Configurado mDNS con hostname %s.local\n", mDNS_hostname.c_str());
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, "WIFI", "mDNS hostname: %s.local", mDNS_hostname.c_str());
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "WIFI", "Iniciando mDNS...OK!");
+
     return true;
 }
 
@@ -215,7 +220,7 @@ bool DomDomWifiClass::saveSTASSID(String str)
 {
     if (strlen(str.c_str()) > EEPROM_SSID_NAME_LENGTH)
     {
-        Serial.println("ERROR: SSID name too long!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "SSID name too long!");
         return false;
     }
     
@@ -223,7 +228,7 @@ bool DomDomWifiClass::saveSTASSID(String str)
     bool result = EEPROM.commit();
     if (!result)
     {
-        Serial.println("Error al guardar en la EEPROM!!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "Error al guardar en la EEPROM!!");
     }
     return result;
 }
@@ -237,7 +242,7 @@ bool DomDomWifiClass::saveSTAPass(String password)
 {
     if (strlen(password.c_str()) > EEPROM_STA_PASSWORD_LENGTH)
     {
-        Serial.println("ERROR: Password too long!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "Password too long!");
         return false;
     }
 
@@ -245,7 +250,7 @@ bool DomDomWifiClass::saveSTAPass(String password)
     bool result = EEPROM.commit();
     if (!result)
     {
-        Serial.println("Error al guardar en la EEPROM!!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "WIFI", "Error al guardar en la EEPROM!!");
     }
     return result;
 }

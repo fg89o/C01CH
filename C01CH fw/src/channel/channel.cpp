@@ -21,15 +21,19 @@
 #include "channel.h"
 #include <EEPROM.h>
 #include "configuration.h"
+#include "../log/logger.h"
 
 const uint32_t SHUNT_MICRO_OHM      = 100000;  ///< Shunt resistance in Micro-Ohm, e.g. 100000 is 0.1 Ohm
 const uint16_t MAXIMUM_AMPS         = 3;       ///< Max expected amps, values are 1 - clamped to max 1022
 const uint16_t INA_AVERAGING        = 64;
 const uint16_t INA_CONVERSION_TIME  = 8244;
 
-DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
+DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40, uint8_t channel)
 {
-    _channel_num = 0;
+    _channel_num = channel;
+    tag = String("CHANNEL ");
+    tag.concat(_channel_num+1);
+
     _enabled = true;
     _iniciado = false;
 
@@ -43,8 +47,11 @@ DomDomChannelClass::DomDomChannelClass(uint8_t INA_address = 0x40)
 
 bool DomDomChannelClass::begin()
 {
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, tag.c_str(), "Iniciando canal...");
     if (!_enabled)
     {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, tag.c_str(), "Canal no habilitado");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, tag.c_str(), "Iniciando canal...ERROR!");
         return false;
     }
 
@@ -62,7 +69,6 @@ bool DomDomChannelClass::begin()
         {
             if (INA.getDeviceAddress(i) == _INA_address )
             {
-                Serial.printf("[CHANNEL %d] Buscando INA . . . OK!\r\n", _channel_num);
                 INA_device_index = i;
             }
         } 
@@ -73,7 +79,9 @@ bool DomDomChannelClass::begin()
 
     if (INA_device_index == UINT8_MAX)
     {
-        Serial.printf("[CHANNEL %d] Error! INA no encontrado.\r\n", _channel_num);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, tag.c_str(), "INA no encontrado");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, tag.c_str(), "Iniciando canal...ERROR!");
+
         _enabled = false;
 
         return false;
@@ -94,6 +102,7 @@ bool DomDomChannelClass::begin()
         NULL                    /* Task handle. */
     );
 
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, tag.c_str(), "Iniciando canal...OK!");
     return true;
 }
 
@@ -113,100 +122,92 @@ void DomDomChannelClass::limitCurrentTask(void *parameter)
     int channels_pin[CHANNEL_SIZE] = CHANNEL_CURRENT_PIN;
     int channel = channels_pin[DomDomChannel.getNum()];
 
-    unsigned long prev_millis_info = 0;
-
     dacWrite(channel, curr_pwm);
 
     float prev_maxV = -1;
-    float prev_targetmA = -1;
+    float prev_targetmA = -999;
 
     DomDomChannel.is_current_stable = false;
     int8_t pwm_dir = 0;
 
     while(DomDomChannel.started())
     {
-        if (DomDomChannel.INA.conversionFinished(0))
-        {
-            // Si los voltios o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
-            if (DomDomChannel.maximum_V != prev_maxV || DomDomChannel.target_mA != prev_targetmA)
-            {
-                prev_maxV = DomDomChannel.maximum_V;
-                prev_targetmA = DomDomChannel.target_mA;
-                DomDomChannel.is_current_stable = false;
-                pwm_dir = 0;
-            } 
-
-            float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
-            float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
-            float power = amps * volts;
-            power = power < 0 ? 0 : power;
-
-            DomDomChannel.lastBusCurrent_mA = amps;
-            DomDomChannel.lastBusVoltaje_V = volts;
-
-            // Guardamos los maximos
-            DomDomChannel.busPowerPeak_W = DomDomChannel.busPowerPeak_W > power ? DomDomChannel.busPowerPeak_W : power;
-            DomDomChannel.busCurrentPeak_mA = DomDomChannel.busCurrentPeak_mA > amps ? DomDomChannel.busCurrentPeak_mA : amps;
-            DomDomChannel.busVoltagePeak_V = DomDomChannel.busVoltagePeak_V > volts ? DomDomChannel.busVoltagePeak_V : volts;
-
+        DomDomChannel.INA.waitForConversion(DomDomChannel.INA_device_index);
             
-            // Calculamos la histeresis en funcion del valor maximo para la corriente
-            // Establecemos un minimo de 5mA
-            float mA_histeresis = (DomDomChannel.maximum_mA * 0.025);
-            mA_histeresis = mA_histeresis < 5 ? 5 : mA_histeresis;
-            // Comprobamos si la corriente esta en el rango establecido
-            bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
-            if (DomDomChannel.is_current_stable && !mAInRange)
+        // Si los voltios o los miliamperios objetivos varían una vez estabilizado volvemos a estabilizar
+        if (DomDomChannel.maximum_V != prev_maxV || DomDomChannel.target_mA != prev_targetmA)
+        {
+            prev_maxV = DomDomChannel.maximum_V;
+            prev_targetmA = DomDomChannel.target_mA;
+            DomDomChannel.is_current_stable = false;
+            pwm_dir = 0;
+        } 
+
+        float volts = DomDomChannel.INA.getBusMilliVolts(DomDomChannel.INA_device_index) / 1000.0f;
+        float amps = DomDomChannel.INA.getBusMicroAmps(DomDomChannel.INA_device_index) / 1000.0f;
+        float power = amps * volts;
+        power = power < 0 ? 0 : power;
+
+        DomDomChannel.lastBusCurrent_mA = amps;
+        DomDomChannel.lastBusVoltaje_V = volts;
+
+        // Guardamos los maximos
+        DomDomChannel.busPowerPeak_W = DomDomChannel.busPowerPeak_W > power ? DomDomChannel.busPowerPeak_W : power;
+        DomDomChannel.busCurrentPeak_mA = DomDomChannel.busCurrentPeak_mA > amps ? DomDomChannel.busCurrentPeak_mA : amps;
+        DomDomChannel.busVoltagePeak_V = DomDomChannel.busVoltagePeak_V > volts ? DomDomChannel.busVoltagePeak_V : volts;
+
+        
+        // Calculamos la histeresis en funcion del valor maximo para la corriente
+        // Establecemos un minimo de 5mA
+        float mA_histeresis = (DomDomChannel.maximum_mA * 0.5);
+        mA_histeresis = mA_histeresis < 5 ? 5 : mA_histeresis;
+        // Comprobamos si la corriente esta en el rango establecido
+        bool mAInRange = (amps < (DomDomChannel.target_mA + mA_histeresis) && amps > (DomDomChannel.target_mA - mA_histeresis));
+        if (DomDomChannel.is_current_stable && !mAInRange)
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, DomDomChannel.tag.c_str(), "DAC fuera de rango! Se vuelve a calcular");
+            DomDomChannel.is_current_stable = false;
+            pwm_dir = 0;
+        }
+
+        if (!DomDomChannel.is_current_stable)
+        {
+            // Si no hay direccion establecida la establecemos ahora
+            if (pwm_dir == 0)
             {
-                DomDomChannel.is_current_stable = false;
+                pwm_dir = (amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V) ? -1 : 1;
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, DomDomChannel.tag.c_str(), "Direccion establecida (%d)", pwm_dir);
+            }
+
+            // Si estamos aumentando la potencia (pwm_dir == -1), aumentamos hasta que el valor actual sea mayor que el objetivo mas histeresis
+            if (pwm_dir == -1 && (amps <= DomDomChannel.target_mA && volts <= DomDomChannel.maximum_V) &&  curr_pwm > min_dac_pwm)
+            {
+                dacWrite(channel, --curr_pwm);
+            }
+
+            // Si estamos aumentando la potencia y nos hemos pasado usamos el valor antiguo
+            if (pwm_dir == -1 && (amps > DomDomChannel.target_mA || volts > DomDomChannel.maximum_V || curr_pwm == min_dac_pwm))
+            {
+                DomDomChannel.is_current_stable = true;
                 pwm_dir = 0;
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, DomDomChannel.tag.c_str(), "DAC Estabilizado (%d)", curr_pwm);
             }
-
-            if (!DomDomChannel.is_current_stable)
+            
+            // Si estamos disminuyendo la potencia (pwm_dir == 1), disminuimos hasta que el valor actual sea menor que el objetivo menos histeresis
+            if ((pwm_dir == 1) && (amps > DomDomChannel.target_mA || volts > DomDomChannel.maximum_V) && curr_pwm < max_dac_pwm)
             {
-                // Si no hay direccion establecida la establecemos ahora
-                if (pwm_dir == 0)
-                {
-                    pwm_dir = (amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V) ? -1 : 1;
-                }
-
-                // Si estamos aumentando la potencia (pwm_dir == -1), aumentamos hasta que el valor actual sea mayor que el objetivo mas histeresis
-                if (pwm_dir == -1 && (amps <= DomDomChannel.target_mA && volts <= DomDomChannel.maximum_V) &&  curr_pwm > min_dac_pwm)
-                {
-                    dacWrite(channel, --curr_pwm);
-                }
-
-                // Si estamos aumentando la potencia y nos hemos pasado usamos el valor antiguo
-                if (pwm_dir == -1 && (amps > DomDomChannel.target_mA && volts > DomDomChannel.maximum_V))
-                {
-                    dacWrite(channel, ++curr_pwm);
-                    DomDomChannel.is_current_stable = true;
-                }
-                
-                // Si estamos disminuyendo la potencia (pwm_dir == 1), disminuimos hasta que el valor actual sea menor que el objetivo menos histeresis
-                if ((pwm_dir == 1) && (amps > DomDomChannel.target_mA || volts > DomDomChannel.maximum_V) && curr_pwm < max_dac_pwm)
-                {
-                    dacWrite(channel, ++curr_pwm);
-                }
-
-                //Si estamos dismnuyendo la potencia y nos hemos pasado usamos el valor actual
-                if ((pwm_dir == 1) && (amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V))
-                {
-                    DomDomChannel.is_current_stable = true;
-                }
-
-                DomDomChannel.curr_dac_pwm = curr_pwm;
+                dacWrite(channel, ++curr_pwm);
             }
 
-            if (millis() - prev_millis_info > CHANNEL_BUS_REFRESH_INTERVAL )
+            //Si estamos dismnuyendo la potencia y nos hemos pasado usamos el valor actual
+            if ((pwm_dir == 1) && ((amps < DomDomChannel.target_mA && volts < DomDomChannel.maximum_V) || curr_pwm == max_dac_pwm))
             {
-                Serial.printf("Bus voltage max: %fV\r\n", DomDomChannel.maximum_V);
-                Serial.printf("Bus miliamps max: %fmA\r\n", DomDomChannel.target_mA);
-                Serial.printf("Bus voltage: %fV\r\n", volts);
-                Serial.printf("Bus miliamps: %fmA\r\n", amps);
-                Serial.printf("DAC: %d\r\n", curr_pwm);
-                prev_millis_info = millis();
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, DomDomChannel.tag.c_str(), "DAC Estabilizado (%d)", curr_pwm);
+                pwm_dir = 0;
+                DomDomChannel.is_current_stable = true;
             }
+
+            DomDomChannel.curr_dac_pwm = curr_pwm;
         }
     }
 
@@ -238,19 +239,19 @@ bool DomDomChannelClass::setTargetmA(float value)
     if (value > maximum_mA)
     {
         value =  maximum_mA;
-        Serial.printf("[CHANNEL %d] ERROR: valor pwm mayor que el maximo. Valor cambiado a %f\r\n", _channel_num, value);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, tag.c_str(), "El valor PWM es mayor que el maximo. Valor cambiado a %f", value);
     }
 
     if (value < minimum_mA)
     {
-        Serial.printf("[CHANNEL %d] WARN: el valor %f menor que el minimo (%f).\r\n", _channel_num, value, minimum_mA);
+        value = minimum_mA;
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, tag.c_str(), "El valor PWM es mayor que el maximo. Valor cambiado a %f", value);
     }
 
     target_mA = value;
-    is_current_stable = false;
 
-    Serial.printf("[Channel %d] Target mA: %f\n", _channel_num, target_mA);
-    
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, tag.c_str(), "Target mA: %f", value);
+
     return true;
 }
 
@@ -299,7 +300,7 @@ bool DomDomChannelClass::save()
 
     if (result)
     {
-        Serial.printf("[Channel %d] Guardado en EEPROM\n", _channel_num);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, tag.c_str(), "Guardado en EEPROM...OK!");
     }
 
     return result;
@@ -349,10 +350,10 @@ bool DomDomChannelClass::loadFromEEPROM()
             leds.push_back(led);
         }
 
-        Serial.printf("[CHANNEL %d] Configuracion cargada correctamente.\n", _channel_num);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, tag.c_str(), "Cargando configuracion desde EEPROM...OK!");
         
     } else {
-        Serial.printf("[CHANNEL %d] No se encontro informacion guardada del canal\n", _channel_num);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, tag.c_str(), "No se encontro informacion en la EEPROM");
         save();
         return false;
     }

@@ -30,10 +30,10 @@
 //===========================================================================
 
 // Define la red wifi a la que intetara conectase por defecto
-#define WIFI_STA_SSID_NAME "MIWIFI_2G_QQPJ"
+#define WIFI_STA_SSID_NAME "" 
 
 // Define el password de la red wifi por defecto
-#define WIFI_STA_PASSWORD "aFG6nxrr"
+#define WIFI_STA_PASSWORD ""
 
 // Numero de intentos para conectar el wifi
 #define WIFI_NUM_RETRIES 3
@@ -63,7 +63,7 @@
 #define MDNS_ENABLED 1
 
 // Nombre mDNS para localizar el equipo
-#define MDNS_HOSTNAME "C01CHDEV"
+#define MDNS_HOSTNAME "C01CH"
 
 //===========================================================================
 //============================ CHANNELS SECTION =============================

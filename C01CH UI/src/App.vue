@@ -82,7 +82,7 @@ export default {
           text: 'NAVEGACIÓN',
           items: [
             { title: 'Inicio', icon: 'mdi-home-variant-outline', link: '/' },
-            { title: 'Programación', icon: 'mdi-clock-outline', link: '/programacion' },
+            { title: 'Programación', icon: 'mdi-calendar-clock', link: '/programacion' },
             { title: 'Aj. Manual', icon: 'mdi-tune', link: '/manual' },
             { title: 'Ventilador', icon: 'mdi-fan', link: '/fan' }
           ]
@@ -91,9 +91,9 @@ export default {
           text: 'CONFIGURACION',
           items: [
             { title: 'Canales', icon: 'mdi-camera-iris', link: '/canales'},
-            { title: 'Fecha y hora', icon: 'mdi-clock', link: '/fechaHora' },
+            { title: 'Fecha y hora', icon: 'mdi-clock-outline', link: '/fechaHora' },
             { title: 'Red / Wifi', icon: 'mdi-lan', link: '/red' },
-            { title: 'Actualizar', icon: 'mdi-cloud-upload-outline', link: '/update'},
+            { title: 'Sistema', icon: 'mdi-view-dashboard-variant-outline', link: '/update'},
             { title: 'Reset', icon: 'mdi-restart', link: '/reset' },
           ]
         },

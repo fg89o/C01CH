@@ -316,7 +316,7 @@ export default {
       if (this.nuevo_porcentaje > 0)
       {
         this.nuevo_porcentaje--;
-        save();
+        this.save();
       }
     },
     increment()
@@ -324,7 +324,7 @@ export default {
       if (this.nuevo_porcentaje < 100)
       {
         this.nuevo_porcentaje++;
-        save();
+        this.save();
       }
     }
   },

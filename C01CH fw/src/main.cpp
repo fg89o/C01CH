@@ -30,11 +30,12 @@
 #include "EEPROMHelper.h"
 #include "channel/ScheduleMgt.h"
 #include "fan/fanControl.h"
+#include "log/logger.h"
 
 void initEEPROM()
 {
   
-  Serial.printf("Iniciando EEPROM con %d bytes\n", EEPROM_SIZE+EEPROM_INA_SIZE);
+  DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "MAIN", "Iniciando EEPROM con %d bytes", EEPROM_SIZE+EEPROM_INA_SIZE);
   bool init = false;
   int err_count = 0;
   while(err_count<EEPROM_INIT_RETRIES && !init)
@@ -56,9 +57,7 @@ void setup()
 {
   Serial.begin(BAUDRATE);
 
-  Serial.println("===============================================");
-  Serial.println(" C01CH Firmware \n Copyright (c) 2020 DomDom ");
-  Serial.println("===============================================");
+  DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "MAIN", "C01CH Firmware | Copyright (c) 2020 Óscar Fernández");
 
   // Inicializamos la eeprom
   initEEPROM();
@@ -71,45 +70,37 @@ void setup()
 
   // Inicializa el wifi
   DomDomWifi.begin();
-  for(int i = 0; i < 10; i++)
-  {
-    if (!DomDomWifi.isConnected())
-    {
-      delay(1000);
-    }else{
-      break;
-    }
-  }
-
   // Si llegamos aqui y no estamos conectados resetamos en 5 segundos
   if (!DomDomWifi.isConnected())
   {
-    delay(5000);
+    int seg = 5;
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "MAIN", "Equipo sin conexion. Se reiniciará en %d segundos!", seg);
+    delay(seg * 1000);
     ESP.restart();
   }
 
   // Configuramos el RTC
   DomDomRTC.load();
-
-  // configuramos el canal
-  DomDomChannel.loadFromEEPROM();
-  
-  // Iniciamos el servidor web
-  DomDomWebServer.begin();
-
-  // Puntos de programacion
-  DomDomScheduleMgt.load();
-
   // Si tenemos conexion a internet inicamos todos los servicios
   if (DomDomWifi.getMode() == 1)
   {
     // Inicializacion del RTC
     DomDomRTC.begin();
-  }  
+  } else {
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::warn, "MAIN", "Equipo sin conexion no se establecera la hora RTC");
+  }
 
-  // Iniciamos el canal
+  // Iniciamos el servidor web
+  DomDomWebServer.begin();
+
+  // configuramos el canal
+  DomDomChannel.loadFromEEPROM();
+ // Iniciamos el canal
   DomDomChannel.begin();  
 
+  // Puntos de programacion
+  DomDomScheduleMgt.load();
+  
   // Iniciamos la programacion
   if (EEPROM.readBool(EEPROM_SCHEDULE_STATUS_ADDRESS))
   {

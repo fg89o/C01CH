@@ -32,6 +32,7 @@
 #include "EEPROMHelper.h"
 #include "Update.h"
 #include "fan/fanControl.h"
+#include "log/logger.h"
 
 String GetBodyContent(uint8_t *data, size_t len)
 {
@@ -62,11 +63,13 @@ DomDomWebServerClass::DomDomWebServerClass(){}
 
 void DomDomWebServerClass::begin()
 {
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"WEBSERVER", "Inciando servidor...");
     _server = new AsyncWebServer (WEBSERVER_HTTP_PORT);
 
     // Initialize SPIFFS
     if(!SPIFFS.begin(true)){
-        Serial.println("An Error has occurred while mounting SPIFFS");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"WEBSERVER", "No se pudo montar el volumen SPIFFS");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"WEBSERVER", "Inciando servidor...ERROR!");
         return;
     }
 
@@ -103,6 +106,9 @@ void DomDomWebServerClass::begin()
 
     // AJAX para el restablecer valores de fbrica
     _server->on("/resetMaximos", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, setResetMaxValues);
+
+    // AJAX para el control de ventilador
+    _server->on("/log", HTTP_POST, [](AsyncWebServerRequest * request){}, NULL, getLog);
 
     // AJAX para actualizar el firmware
      _server->on("/update", HTTP_POST, [&](AsyncWebServerRequest *request) {
@@ -167,7 +173,7 @@ void DomDomWebServerClass::begin()
     
     _server->begin();
 
-    Serial.println("HTTP server started");
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"WEBSERVER", "Inciando servidor...OK!");
 };
 
 void DomDomWebServerClass::getRTCData(AsyncWebServerRequest *request)
@@ -672,6 +678,43 @@ void DomDomWebServerClass::setFanSettings(AsyncWebServerRequest * request, uint8
     DomDomFanControl.save();
     
     SendResponse(request);
+}
+
+void DomDomWebServerClass::getLog(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+    String bodyContent = GetBodyContent(data, len);
+    DynamicJsonDocument doc(1024);;
+    DeserializationError err = deserializeJson(doc, bodyContent);
+
+    bool showDebug = false;
+    if (!err) { 
+
+        if (doc.containsKey("debug"))
+        {
+            showDebug = (doc["debug"]);
+        }
+    }
+
+    DynamicJsonDocument jsonDoc(6000);
+    JsonArray entries = jsonDoc.createNestedArray("entries");
+
+    for(int i = DomDomLogger.log_RAM.size() -1; i >= 0; i--)
+    {
+        if (DomDomLogger.log_RAM[i].level != DomDomLoggerClass::LogLevel::debug || showDebug)
+        {
+            JsonObject obj = entries.createNestedObject();
+            obj["level"] =  DomDomLogger.log_RAM[i].level;
+            obj["tag"] = DomDomLogger.log_RAM[i].tag;
+            obj["message"] = DomDomLogger.log_RAM[i].message;
+            obj["time"] = DomDomLogger.log_RAM[i].time;
+        }
+    }
+    
+    serializeJson(jsonDoc, *response);
+    
+    SendResponse(request,response);
 }
 
 #if !defined(NO_GLOBAL_INSTANCES)
