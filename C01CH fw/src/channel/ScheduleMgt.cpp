@@ -22,6 +22,7 @@
 #include <EEPROM.h>
 #include "configuration.h"
 #include "channel.h"
+#include "../log/logger.h"
 
 DomDomScheduleMgtClass::DomDomScheduleMgtClass(/* args */)
 {
@@ -125,7 +126,7 @@ bool DomDomScheduleMgtClass::save()
 {
     int address = EEPROM_SCHEDULE_FIRST_ADDRESS ;
     EEPROM.write(address++, (uint8_t)schedulePoints.size());
-    Serial.println("Guardando programacion...");
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Guardando programacion...");
 
     for (int i = 0; i < schedulePoints.size(); i++)
     {
@@ -142,30 +143,28 @@ bool DomDomScheduleMgtClass::save()
 
     if (result)
     {
-        Serial.println("Programacion guardada correctamente.");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Guardando programacion...OK!");
     }
     else
     {
-        Serial.println("ERROR: No se pudo guardar la programacion.");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"SCHEDULE", "Guardando programacion...ERROR!");
     }
         
-
     return result;
-
 }
 
 bool DomDomScheduleMgtClass::load()
 {
     schedulePoints.clear();
 
-    Serial.println("Cargando programacion...");
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Cargando programacion...");
 
     int address = EEPROM_SCHEDULE_FIRST_ADDRESS ;
     uint8_t count = EEPROM.read(address++);
 
     if (count > 0 && count <= EEPROM_MAX_SCHEDULE_POINTS)
     {
-        Serial.printf("Encontrados %d puntos\n", count);
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "Encontrados %d puntos\n", count);
         for (int i = 0; i < count; i++)
         {
             
@@ -179,11 +178,9 @@ bool DomDomScheduleMgtClass::load()
             
         };
 
-        Serial.printf("Cargados %d puntos de programacion correctamente.\n", count);
-    }else{
-        Serial.print("No hay puntos de programacion guardados\n");
     }
 
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Cargando programacion...OK!");
     return true;
 }
 
@@ -191,7 +188,7 @@ void DomDomScheduleMgtClass::addSchedulePoint(DomDomDayOfWeek day, uint8_t hour,
 {
     if (schedulePoints.size() >= EEPROM_MAX_SCHEDULE_POINTS)
     {
-        Serial.println("ERROR: Numero maximo de programaciones alcanzado!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn,"SCHEDULE", "Numero maximo de programaciones alcanzado. Se omitira esta inserccion");
         return;
     }
 
@@ -202,7 +199,7 @@ void DomDomScheduleMgtClass::addSchedulePoint(DomDomDayOfWeek day, uint8_t hour,
 {
     if (schedulePoints.size() >= EEPROM_MAX_SCHEDULE_POINTS)
     {
-        Serial.println("ERROR: Numero maximo de programaciones alcanzado!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn,"SCHEDULE", "Numero maximo de programaciones alcanzado. Se omitira esta inserccion");
         return;
     }
 
@@ -212,12 +209,12 @@ void DomDomScheduleMgtClass::addSchedulePoint(DomDomDayOfWeek day, uint8_t hour,
 
 bool DomDomScheduleMgtClass::begin()
 {
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Iniciando programación...");
     if (!_started)
     {
 
         if (schedulePoints.size() > 0)
         {
-            Serial.printf("[Schedule] Programacion iniciada\n");
             _started = true;
 
             xTaskCreate(
@@ -232,10 +229,11 @@ bool DomDomScheduleMgtClass::begin()
         else
         {
             // Si no hay puntos de programación ponemos el valor al 100%
-            Serial.printf("[Schedule] No hay puntos de programacion. Cambiado a modo manual.\n");
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "No hay puntos de programacion. Cambiado a modo manual.");
             DomDomChannel.setTargetmA(DomDomChannel.maximum_mA);
         }
         
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Iniciando programación...OK!");
     }
 
     return true;
@@ -254,7 +252,7 @@ bool DomDomScheduleMgtClass::end()
 void DomDomScheduleMgtClass::update()
 {
     DateTime now = DomDomRTC.now();
-    Serial.printf("[Schedule] %d:%d Comprobando programacion\n", now.hour(), now.minute());
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "%d:%d Comprobando programacion", now.hour(), now.minute());
 
     DateTime horaAnterior;
     DateTime horaSiguiente;
@@ -265,18 +263,18 @@ void DomDomScheduleMgtClass::update()
     correct = getShedulePoint(horaAnterior, puntoAnterior, true);
     if (!correct)
     {
-        Serial.println("ERROR: No se encontra una programacion previa.");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"SCHEDULE", "No se encontra una programacion previa.");
         return;
     }
 
     correct = getShedulePoint(horaSiguiente, puntoSiguiente, false);
     if (!correct)
     {
-        Serial.println("ERROR: No se encontra una programacion siguiente.");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"SCHEDULE", "No se encontra la programacion siguiente.");
         return;
     }
 
-    Serial.printf("[Schedule] intervalo obtenido: %d:%d - %d:%d\n", puntoAnterior->hour, puntoAnterior->minute, puntoSiguiente->hour, puntoSiguiente->minute);
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "intervalo obtenido: %d:%d - %d:%d", puntoAnterior->hour, puntoAnterior->minute, puntoSiguiente->hour, puntoSiguiente->minute);
 
     int mA = 0;
     int porcentaje = 0;
@@ -298,7 +296,10 @@ void DomDomScheduleMgtClass::update()
 
     mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * (double)(porcentaje/100.0f));
 
-    DomDomChannel.setTargetmA(mA);
+    if (mA != DomDomChannel.target_mA)
+    {
+        DomDomChannel.setTargetmA(mA);
+    }
 }
 
 void DomDomScheduleMgtClass::scheduleTask(void *parameter)
@@ -322,7 +323,8 @@ int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_
     // Si la hora es la misma ajustamos directamente el valor.
     if (minutes_total == 0)
     {
-        Serial.println("WARN: Misma hora de inicio y de final. ¿Error en programacion?");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::warn,"SCHEDULE", "Misma hora de inicio y de final. ¿Error en programacion?");
+        
         porcentaje_result = nextValue;
     }
     else

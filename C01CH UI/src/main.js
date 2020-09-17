@@ -8,7 +8,7 @@ Vue.use(VueResource);
 
 Vue.config.productionTip = false
 
-Vue.prototype.$version = "1.1.0"
+Vue.prototype.$version = "1.1.2"
 
 
 new Vue({

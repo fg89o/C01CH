@@ -25,6 +25,7 @@
 #include <Wire.h>
 #include "../wifi/WiFi.h"
 #include "configuration.h"
+#include "../log/logger.h"
 
 //#include "zones.h"
 
@@ -32,7 +33,7 @@ DomDomRTCClass::DomDomRTCClass(){}
 
 bool DomDomRTCClass::begin()
 {
-    Serial.println("Inicializando RTC");
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...");
     ready = false;
     
     timeClient = new NTPClient(_ntpUDP, _ntpServerName.c_str(), 0, 0);
@@ -44,7 +45,15 @@ bool DomDomRTCClass::begin()
         beginNTP();
     }else
     {
-        Serial.println("[RTC] Conexion WIFI no valida!");
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Conexión WIFI no disponible");
+    }
+    
+    if (ready)
+    {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...OK!");
+    }else
+    {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Inicializando RTC...ERROR!");
     }
     
 
@@ -60,7 +69,7 @@ bool DomDomRTCClass::updateFromNTP()
         result = timeClient->forceUpdate();
         if (result)
         {
-            Serial.printf("[NTP] tiempo recibido: %ld\n", timeClient->getEpochTime());
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, "RTC", "NTP recibido: %d", timeClient->getEpochTime());
             adjust(timeClient->getEpochTime());
             LastNTPCheck = millis();
         }
@@ -109,7 +118,7 @@ void DomDomRTCClass::NTPTask(void * parameter)
             else
             {
                 ms = NTP_DELAY_ON_FAILURE;
-                Serial.println("ERROR: NTP no recibio una respuesta.");
+                DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"RTC", "No se recibio respuesta del NTP");
             }
         }
     }
@@ -151,7 +160,7 @@ void DomDomRTCClass::adjust(time_t dt)
 
     settimeofday((const timeval*)&epoch, 0);
 
-    Serial.printf("[RTC] RTC interno ajustado a %s\n",nDate.timestamp().c_str());
+    DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"RTC", "RTC interno ajustado a %s",nDate.timestamp().c_str());
 }
 
 bool DomDomRTCClass::save()

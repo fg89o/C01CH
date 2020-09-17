@@ -99,6 +99,10 @@ class DomDomWebServerClass
          * Acepta un JSON que con la estructura correcta provoca un reinicio en equipo.
          */
         static void setResetMaxValues(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total);
+        /**
+         * Devuelve un JSON con la informacion de los canales.
+         */
+        static void getLog(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total);
 };
 
 #if !defined(NO_GLOBAL_INSTANCES)

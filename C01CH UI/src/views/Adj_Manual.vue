@@ -39,14 +39,17 @@
       <v-btn link to="/canales" class="float-right" text color="primary">Ir a configuración</v-btn>
       </v-alert>
       <v-row>
-        <v-col :class="ledsCount == 0 ? 'd-none' : ''" cols="12" lg="6">
-          <canvas id="espectro-chart"></canvas>
+        <v-col :class="ledsCount == 0 ? 'd-none' : ''" cols="12" md="6" lg="4">
+          <div class="chart-container" style="position: relative;">
+            <canvas id="espectro-chart"></canvas>
+        </div>
+          <!-- <canvas style="max-height: 300px" id="espectro-chart"></canvas> -->
         </v-col>
-        <v-col cols="12" lg="6">
+        <v-col cols="12" md="6" class="py-0">
           <v-form v-if="!loading" class="mx-4">
             <v-row align="center">
-              <v-col cols="12" class="d-flex justify-end">
-                <v-btn large text color="primary" v-on:click="request()">Actualizar</v-btn>
+              <v-col cols="12" class="d-flex justify-end py-0">
+                <v-btn large text color="primary" class="caption" v-on:click="request()">Actualizar</v-btn>
               </v-col>
               <v-col cols="8">
                   <v-input
@@ -115,12 +118,13 @@ export default {
       modo_manual: false,
       loading: true,
       porcentaje: {},
-      ledsCount: 0
+      ledsCount: 0,
+      espectroChart: {}
   }),
   methods: {
     createChart(chartId, chartData) {
       const ctx = document.getElementById(chartId);
-      new Chart(ctx, {
+      this.espectroChart = new Chart(ctx, {
         type: chartData.type,
         data: chartData.data,
         options: {
@@ -131,7 +135,7 @@ export default {
           legend:{
             display: false
           },
-          responsive: true,
+          responsive: false,
           aspectRatio: 1,
           scales: {
             xAxes: [{
@@ -171,6 +175,7 @@ export default {
       if (this.porcentaje[index] > 0)
       {
         this.$set(this.porcentaje,index, this.porcentaje[index]-1);
+        this.send();
       }
     },
     increment(index)
@@ -178,6 +183,7 @@ export default {
       if (this.porcentaje[index] < 100)
       {
         this.$set(this.porcentaje,index, this.porcentaje[index]+1);
+        this.send();
       }
     },
     send()
@@ -292,52 +298,20 @@ export default {
 
       if (blancos.length > 0 || color.length > 0)
       {
-        
-        var canvas = document.getElementById("espectro-chart");
-        const ctx = canvas.getContext("2d");
-        var gradient = ctx.createLinearGradient(0, 0, canvas.parentElement.offsetWidth, 0);
-        gradient.addColorStop(0, 'black');
-        gradient.addColorStop(.1, 'blue');
-        gradient.addColorStop(.3, 'blue');
-        gradient.addColorStop(.4, 'rgb(0,206,209)');
-        gradient.addColorStop(.45, 'rgb(0,255,0)');
-        gradient.addColorStop(.6, 'rgb(0,255,0)');
-        gradient.addColorStop(.7, 'yellow');
-        gradient.addColorStop(.75, 'orange');
-        gradient.addColorStop(.85, 'red');
-        gradient.addColorStop(1, 'black');
-        var obj = {
-          type: 'line',
-          data: {
-            labels: [],
-            datasets: [
-              { // one line graph
-                data: [],
-                lineTension: 0.3,  
-                backgroundColor: gradient,
-                borderWidth: 1,
-                borderColor: [
-                  'black',
-                ],
-                pointBackgroundColor: 'rgba(0,0,0,0)',
-                pointBorderColor: 'rgba(0,0,0,0)',
-                pointBorderWidth: 0
-              }
-            ]
-          },
-        }
+        this.espectroChart.data.datasets[0].data = [];
+        this.espectroChart.data.labels = [];
 
         const p = this.polinomio(blancos,color,0);
         const f = parse(p);
         const simplified = simplify(f);
         for (var z = 0; z <= 10; z += 0.1)
         {
-          obj.data.labels.push(z);
+          this.espectroChart.data.labels.push(z);
           var onda =simplified.evaluate({ x: z });
-          obj.data.datasets[0].data.push(onda);
+          this.espectroChart.data.datasets[0].data.push(onda);
         }
 
-        this.createChart('espectro-chart', obj);
+        this.espectroChart.update();
       }
     },
     polinomio(blancos, color, fullespectro)
@@ -409,7 +383,46 @@ export default {
       return m + ')/' + w ;
     }
   }, 
-  created: function(){
+  mounted: function(){
+
+    var canvas = document.getElementById("espectro-chart");
+    const ctx = canvas.getContext("2d");
+    var obj = {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { 
+            data: [],
+            lineTension: 0.3,  
+            //backgroundColor: gradient,
+            borderWidth: 1,
+            borderColor: [
+              'black',
+            ],
+            pointBackgroundColor: 'rgba(0,0,0,0)',
+            pointBorderColor: 'rgba(0,0,0,0)',
+            pointBorderWidth: 0
+          }
+        ]
+      },
+    }
+    this.createChart('espectro-chart', obj);
+
+    var gradient = ctx.createLinearGradient(0, 0, parseInt(canvas.style.width, 10), 0);
+    gradient.addColorStop(0, 'black');
+    gradient.addColorStop(.1, 'blue');
+    gradient.addColorStop(.3, 'blue');
+    gradient.addColorStop(.4, 'rgb(0,206,209)');
+    gradient.addColorStop(.45, 'rgb(0,255,0)');
+    gradient.addColorStop(.6, 'rgb(0,255,0)');
+    gradient.addColorStop(.7, 'yellow');
+    gradient.addColorStop(.75, 'orange');
+    gradient.addColorStop(.85, 'red');
+    gradient.addColorStop(1, 'black');
+
+    this.espectroChart.data.datasets[0]["backgroundColor"] = gradient;
+
     this.request();
   }
 }

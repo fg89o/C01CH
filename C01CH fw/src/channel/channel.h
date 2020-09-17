@@ -65,12 +65,12 @@ class DomDomChannelClass
          * Tarea para mantener la limitacion de corriente en el canal
          */
         static void limitCurrentTask(void * parameter);
-        
+
     public:
         /**
          * Constructor
          */
-        DomDomChannelClass(uint8_t INA_address);
+        DomDomChannelClass(uint8_t INA_address, uint8_t channel = 0);
         /**
          * Sensor de corriente
          */
@@ -116,9 +116,9 @@ class DomDomChannelClass
          */
         float minimum_mA;
         /**
-         * Voltaje objetivo
+         * Voltaje maximo para el canal
          */
-        float target_V;
+        float maximum_V;
         /**
          * Corriente objetivo
          */
@@ -168,6 +168,10 @@ class DomDomChannelClass
          * almacenada en memoria para este canal.
          */
         bool loadFromEEPROM();
+        /**
+         * Devuelve el tag para el log de este canal
+         */
+        String tag;
 };
 
 #if !defined(NO_GLOBAL_INSTANCES)

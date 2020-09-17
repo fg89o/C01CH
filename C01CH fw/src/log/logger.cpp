@@ -21,87 +21,100 @@
 #include <stdarg.h>
 #include "logger.h"
 #include "esp_log.h"
+#include "../lib/RTCLib/RTClib.h"
 
 DomDomLoggerClass::DomDomLoggerClass(){}
 
-void DomDomLoggerClass::logToRAM(const char *tag, char *message)
+void serial_print(DomDomLoggerClass::LogEntry entry)
 {
-    sprintf(message, "[%s]\t%s", tag, message);
-    if (log_RAM.size() >= max_log_entries)
+    String outputstr;
+
+    DateTime dt (millis());
+    outputstr.concat(dt.hour());
+    outputstr.concat(":");
+    outputstr.concat(dt.minute());
+    outputstr.concat(":");
+    outputstr.concat(dt.second());
+
+    switch (entry.level)
     {
-        log_RAM.pop_back();
+        case DomDomLoggerClass::LogLevel::debug :
+            outputstr.concat("\t[DEBUG]");
+            break;
+        case DomDomLoggerClass::LogLevel::info :
+            outputstr.concat("\t[INFO]");
+            break;
+        case DomDomLoggerClass::LogLevel::warn :
+            outputstr.concat("\t[WARN]");
+            break;
+        case DomDomLoggerClass::LogLevel::error :
+            outputstr.concat("\t[ERROR]");
+            break;
+        default:
+            break;
     }
 
-    log_RAM.push_back(message);
+    outputstr.concat("\t[");
+    outputstr.concat(entry.tag);
+    outputstr.concat("]");
+
+    outputstr.concat("\t" + entry.message);
+
+    Serial.println(outputstr);
 }
 
-void DomDomLoggerClass::log(int level, const char *tag, const char *format, va_list args)
+void DomDomLoggerClass::log(DomDomLoggerClass::LogLevel level, const char *tag, const char *format, ...)
 {
-    char *message = nullptr;
-    sprintf(message, format, args);
+    va_list argp;
+    DomDomLoggerClass::LogEntry entry;
 
-    switch (level)
-    {
-        case 1:
-            sprintf(message, "[%s]\t[ERROR]\t%s", tag, message);
-            break;  
-        case 2:
-            sprintf(message, "[%s]\t[WARN]\t%s", tag, message);
-            break;   
-        case 3:
-            sprintf(message, "[%s]\t[INFO]\t%s", tag, message);
-            break;   
-        case 4:
-            sprintf(message, "[%s]\t[DEBUG]\t%s", tag, message);
-            break;   
-        case 5:
-            sprintf(message, "[%s]\t[VERBOSE]\t%s", tag, message);
-            break;   
+    entry.time = millis();
+    entry.level = level;
+    entry.tag = tag;
+
+    va_start(argp, format);
+    while (*format != '\0') {
+        if (*format == '%') {
+            format++;
+            if (*format == '%') {
+                entry.message.concat('%');
+            } else if (*format == 'c') {
+                unsigned char char_to_print = va_arg(argp, int);
+                entry.message.concat(char_to_print);
+            } else if (*format == 'd') {
+                int char_to_print = va_arg(argp, int);
+                entry.message.concat(char_to_print);
+            } else if (*format == 's') {
+                char *char_to_print = va_arg(argp, char *);
+                entry.message.concat(char_to_print);
+            } else if (*format == 'f') {
+                double value = va_arg(argp, double);
+                entry.message.concat(value);
+            } else {
+                entry.message.concat("[Not implemented]");
+            }
+        } else {
+            entry.message.concat(*format);
+        }
+        format++;
     }
+    va_end(argp);
 
-    if (output_serial_enabled) Serial.print(message);
-    if (output_ram_enabled) logToRAM(tag,message);
-}
+    if (output_ram_enabled)
+    {
+        if (log_RAM.size() > max_log_entries)
+        {
+            log_RAM.pop_back();
+        }
 
-
-void DomDomLoggerClass::logV(String tag, String format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    log(5,tag.c_str(), format.c_str(), args);
-    va_end(args);
-}
-
-void DomDomLoggerClass::logD(String tag, String format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    log(4,tag.c_str(), format.c_str(), args);
-    va_end(args);
-}
-
-void DomDomLoggerClass::logI(String tag,String format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    log(3,tag.c_str(), format.c_str(), args);
-    va_end(args);
-}
-
-void DomDomLoggerClass::logW(String tag, String format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    log(2,tag.c_str(), format.c_str(), args);
-    va_end(args);
-}
-
-void DomDomLoggerClass::logE(String tag, String format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    log(1,tag.c_str(), format.c_str(), args);
-    va_end(args);
+        log_RAM.push_back(entry);
+    }
+    
+    if (output_serial_enabled)
+    {
+        serial_print(entry);
+    }
+    
 }
 
 #if !defined(NO_GLOBAL_INSTANCES)

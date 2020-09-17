@@ -23,25 +23,36 @@
 #define DOMDOM_LOGGER_h
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <Arduino.h>
+
+
 
 class DomDomLoggerClass
 {
-    private:
-        /**
-         * Array con los mensajes en RAM
-         */
-        std::vector<String> log_RAM;
-        /**
-         * Metodo que crea una entrada en la RAM
-         */
-        void logToRAM(const char *tag, char *message);
-        /**
-         * Realiza una entrada del log en formato INFO
-         */
-        void log(int level, const char *tag, const char *format, va_list args);
-
     public:
+        /**
+         * Enumerado para los distintos tipos de nivel de alerta
+         */
+        enum LogLevel
+        {
+            debug = 1,
+            info = 2,
+            warn = 4,
+            error = 8
+        };
+
+        /**
+         * Estructura para las entradas de log
+         */
+        struct LogEntry 
+        {
+            String                          message;
+            DomDomLoggerClass::LogLevel     level;
+            long int                        time;
+            const char*                     tag;
+        };
+
         /**
          * Constructor
          */
@@ -57,27 +68,15 @@ class DomDomLoggerClass
         /**
          * Numero de entradas máximas para el log
          */
-        int max_log_entries = 100;
+        int max_log_entries = 500;
         /**
-         * Realiza una entrada del log en formato VERBOSE
+         * Crea una nueva entrada
          */
-        void logV(String tag, String format, ...);
-         /**
-         * Realiza una entrada del log en formato DEBUG
-         */
-        void logD(String tag, String format, ...);
-         /**
-         * Realiza una entrada del log en formato INFO
-         */
-        void logI(String tag, String format, ...);
+        void log(DomDomLoggerClass::LogLevel level, const char *tag, const char *format, ...);
         /**
-         * Realiza una entrada del log en formato ERROR
+         * Array con los mensajes en RAM
          */
-        void logE(String tag, String format, ...);
-        /**
-         * Realiza una entrada del log en formato WARNING
-         */
-        void logW(String tag, String format, ...);
+        std::vector<DomDomLoggerClass::LogEntry> log_RAM;
 };
 
 #if !defined(NO_GLOBAL_INSTANCES)

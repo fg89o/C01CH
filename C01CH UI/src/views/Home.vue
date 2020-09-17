@@ -171,54 +171,6 @@
       </v-row>
     </v-col>
   </v-row>
-
-  
-
-  <!-- <v-row align="center" justify="center">
-    <v-col cols="12" md="10" lg="10"
-      style="
-        padding-top: 0px;
-        margin-top: -50px;
-        background-color: white;
-        border-radius: 5px;
-        border: 1px solid #aaa;
-        margin-bottom: 50px;
-      "
-    >
-      <v-row>
-        <v-col cols="12" md="8">
-          <canvas id="canales-chart"></canvas>
-        </v-col>
-        <v-col md="4" cols="12">
-          <v-row>
-            <v-col offset-sm="2" offset-md="0" cols="4" md="12">
-              <div class="d-flex flex-column">
-                <span class="subheading font-weight-light mr-1">Modo:</span>
-                <span
-                  class="title font-weight-bold"
-                  v-text="modo"
-                ></span>
-              </div>
-            </v-col>
-            <v-col cols="4" md="12">
-              <v-row>
-                <v-col cols="6" md="12">
-                  <span class="subheading font-weight-light mr-1">Siguiente cambio:</span>
-                </v-col>
-                <v-col cols="6" md="12">
-                  <span
-                    class="display-2 font-weight-light py-4"
-                    v-text="siguiente_hora"
-                  ></span>
-                </v-col>
-              </v-row>
-            </v-col>
-          </v-row>
-        </v-col>
-      </v-row>
-    </v-col>
-  </v-row> -->
-  
 </v-container>
 </template>
 
