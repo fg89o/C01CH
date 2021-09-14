@@ -37,7 +37,7 @@ class DomDomChannelClass
 {
     private:
         /**
-         * Numero del canal. Actual como id del canal.
+         * Numero del canal. Actua como id del canal.
          */
         uint8_t _channel_num;
         /**
@@ -54,9 +54,17 @@ class DomDomChannelClass
          */
         uint8_t _INA_address;
         /**
-         * Guarda el valor PWM actual en memoria.
+         * Resolución del canal PWM
          */
-        bool saveCurrentPWM();
+        uint8_t _resolution;
+        /**
+         * Valor actual del pwm
+         */
+        uint16_t _current_pwm;
+        /**
+         * PWM Pin
+         */
+        uint8_t _pwm_pin;
         /**
          * Devuelve la primera direccion de memoria para este canal
          */
@@ -64,13 +72,13 @@ class DomDomChannelClass
         /**
          * Tarea para mantener la limitacion de corriente en el canal
          */
-        static void limitCurrentTask(void * parameter);
+        static void CurrentMonitorTask(void * parameter);
 
     public:
         /**
          * Constructor
          */
-        DomDomChannelClass(uint8_t INA_address, uint8_t channel = 0);
+        DomDomChannelClass(uint8_t channel = 0);
         /**
          * Sensor de corriente
          */
@@ -80,17 +88,9 @@ class DomDomChannelClass
          */
         uint8_t INA_device_index;
         /**
-         * Ultimo voltaje leido en el bus
-         */
-        float lastBusVoltaje_V = 0;
-        /**
          * Voltaje maximo detectado en el bus
          */
         float busVoltagePeak_V = 0;
-        /**
-         * Ultima corriente leida en el bbus
-         */
-        float lastBusCurrent_mA = 0;
         /**
          * Corriente máxima detectada
          */
@@ -100,6 +100,14 @@ class DomDomChannelClass
          */
         float busPowerPeak_W = 0;
         /**
+         * Ultimo voltaje leido en el bus
+         */
+        float lastBusVoltaje_V = 0;
+        /**
+         * Ultima corriente leida en el bbus
+         */
+        float lastBusCurrent_mA = 0;
+        /**
          * Indica si se esta controlando el canal
          */
         bool started();
@@ -107,34 +115,6 @@ class DomDomChannelClass
          * Configuracion de leds para este canal
          */
         std::vector<DomDomChannelLed *> leds;
-        /**
-         * Limite máximo para miliamperios en este canal
-         */
-        float maximum_mA;
-        /**
-         * Límite mínimo para los miliamperios en este canal
-         */
-        float minimum_mA;
-        /**
-         * Voltaje maximo para el canal
-         */
-        float maximum_V;
-        /**
-         * Corriente objetivo
-         */
-        float target_mA;
-        /**
-         * Pin de salida de este canal
-         */
-        uint8_t dac_pwm_pin;
-        /**
-         * PWM actual para la salida DAC
-         */
-        uint8_t curr_dac_pwm;
-        /**
-         * Indica si la corriente de salida se encuentra estable
-         */
-        bool is_current_stable;
         /**
          * Devuelve el numero del canal en solo lectura.
          */
@@ -144,9 +124,25 @@ class DomDomChannelClass
          */
         bool getEnabled() const {return _enabled; };
         /**
+         * Devuelve el pwm actual
+         */
+        uint16_t getPWM() const { return _current_pwm; }
+        /**
+         * Devuelve el pwm actual
+         */
+        uint16_t getMinPWM() const { return 0; }
+        /**
+         * Devuelve el pwm actual
+         */
+        uint16_t getMaxPWM() const { return pow(2,_resolution); }
+        /**
+         * Devuelve la resolucion del pwm actual
+         */
+        uint16_t getPWMResolution() const { return _resolution; }
+        /**
          * Configura el canal.
          */
-        bool begin();
+        bool begin(uint8_t INA_address, uint8_t pwm_pin, uint8_t resolution = 12);
         /**
          * Quita la configuracion del canal.
          */
@@ -156,13 +152,9 @@ class DomDomChannelClass
          */
         bool setEnabled(bool enabled);
         /**
-         * Establece los mA objetivo
-         */
-        bool setTargetmA(float value);
-        /**
          * Guarda la configuracion actual del canal en memoria.
          */
-        bool save();
+        bool saveConfig();
         /**
          * Invalida la configuracion actual y carga la configuracion
          * almacenada en memoria para este canal.
@@ -172,10 +164,18 @@ class DomDomChannelClass
          * Devuelve el tag para el log de este canal
          */
         String tag;
+        /**
+         * Establece el pwm actual del canal
+         */
+        bool setPWM(uint16_t value, bool guardar = false);
+        /**
+         * Guarda el valor PWM actual en memoria.
+         */
+        bool saveCurrentPWM();
+        /**
+         * Carga el valor PWM en memoria.
+         */
+        uint16_t loadCurrentPWM();
 };
-
-#if !defined(NO_GLOBAL_INSTANCES)
-extern DomDomChannelClass DomDomChannel;
-#endif
 
 #endif /* DOMDOM_CHANNEL_h */

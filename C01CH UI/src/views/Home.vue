@@ -160,7 +160,7 @@
                     </v-list-item-subtitle>
                     <v-list-item-subtitle class="d-flex flex-row justify-space-between">
                       <div class="text-caption">{{canal.bus_volts.toFixed(1)}}V | {{(canal.bus_miliamps / 1000).toFixed(2)}}A | {{(canal.bus_miliamps / 1000 * canal.bus_volts).toFixed(0)}}W</div>
-                      <div class="text-caption align-right">DAC: {{canal.dac_pwm}}</div>
+                      <div class="text-caption align-right">PWM: {{canal.pwm_value}}</div>
                     </v-list-item-subtitle>
                   </v-list-item-content>
                 </v-list-item>
@@ -173,6 +173,34 @@
   </v-row>
 </v-container>
 </template>
+
+<style scoped>
+.pulse {
+
+	border-radius: 50%;
+	box-shadow: 0 0 0 0 rgba(0, 0, 0, 1);
+	transform: scale(1);
+	animation: pulse 2s infinite;
+  
+}
+
+@keyframes pulse {
+	0% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
+	}
+
+	70% {
+		transform: scale(1);
+		box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+	}
+
+	100% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+	}
+}
+</style>
 
 <script>
 import Chart from 'chart.js';
@@ -284,8 +312,8 @@ export default {
         self.canales = response.body["canales"];
         for (let i = 0; i < self.canales.length; i++)
         {
-          var rango = self.canales[i].max_mA - self.canales[i].min_mA;
-          var valor = self.canales[i].target_mA - self.canales[i].min_mA;
+          var rango = self.canales[i].pwm_max - self.canales[i].pwm_min;
+          var valor = self.canales[i].pwm_value - self.canales[i].pwm_min;
 
           self.canales[i].potencia =  Math.round(valor * 100 / rango);
         }

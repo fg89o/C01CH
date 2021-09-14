@@ -23,13 +23,13 @@
 #include <Wire.h>
 #include "configuration.h"
 #include "statusLedControl/statusLedControl.h"
-#include "channel/channel.h"
+#include "channel/channelMgt.h"
 #include "wifi/WiFi.h"
 #include "rtc/rtc.h"
 #include "webServer/webServer.h"
 #include "EEPROMHelper.h"
 #include "channel/ScheduleMgt.h"
-#include "fan/fanControl.h"
+// #include "fan/fanControl.h"
 #include "log/logger.h"
 
 void initEEPROM()
@@ -93,10 +93,9 @@ void setup()
   // Iniciamos el servidor web
   DomDomWebServer.begin();
 
-  // configuramos el canal
-  DomDomChannel.loadFromEEPROM();
- // Iniciamos el canal
-  DomDomChannel.begin();  
+  // Configuramos los canales
+  DomDomChannelMgt.loadAll();
+  DomDomChannelMgt.begin();
 
   // Puntos de programacion
   DomDomScheduleMgt.load();
@@ -106,22 +105,43 @@ void setup()
   {
       DomDomScheduleMgt.begin();
   }else{
-    DomDomChannel.setTargetmA(DomDomChannel.target_mA);
+      // DomDomChannel.setPWM(DomDomChannel.loadCurrentPWM());
   }
 
   // Ventilador
-  DomDomFanControl.begin();
+  // DomDomFanControl.begin();
 }
+
+unsigned long prev_millis = millis();
 
 void loop()
 {
 
-  /************************************************
-   * 
-   *  EN ESTE PROYECTO EL LOOP() ESTARA VACIO 
-   *  YA QUE APROVECHAMOS LAS TASK PARA SACARLE
-   *  EL MAXIMO PARTIDO A LOS DOS CORES DEL ESP.
-   * 
-   * *********************************************/
+  // Si la conexion a internet no esta establecida volvemos a probar
+  if ( (DomDomWifi.getMode() == WIFI_MODE_STA && !DomDomWifi.isConnected()) || DomDomWifi.getMode() == WIFI_MODE_AP )
+  {
+    // Solamente comprobamos una vez por minuto
+    if ( millis() - prev_millis > WIFI_RECONNECTION_PERIOD )
+    {
+      prev_millis = millis();
+
+      // Si estamos en modo AP y tenemos clientes conectados salimos
+      if ( DomDomWifi.getMode() == WIFI_MODE_AP && DomDomWifi.getAPClients() > 0)
+      {
+        return;
+      }
+
+      DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "MAIN", "Reintentando conexion wifi...");
+      DomDomWifi.begin();
+      
+      if ( DomDomWifi.getMode() == WIFI_MODE_STA )
+      {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "MAIN", "Reintentando conexion wifi...OK!");
+        DomDomRTC.begin();
+      } else {
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "MAIN", "Reintentando conexion wifi...ERROR!");
+      }
+    }
+  }
 
 }

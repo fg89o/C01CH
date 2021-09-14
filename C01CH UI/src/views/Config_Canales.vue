@@ -77,55 +77,6 @@
           </v-col>
         </v-row>
         <v-row>
-          <v-col cols="6" sm="3">
-            <v-text-field
-                v-model="item.target_mA"
-                label="mA objetivo actuales"
-                readonly
-                dense
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col cols="12">
-            <v-text-field
-                v-model="item.max_volts"
-                label="Voltaje Máximo"
-                hint = "Voltaje máximo al que se limitará el canal"
-                type="number"
-                suffix="V"
-                persistent-hint
-                required
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col cols="12">
-            <v-text-field
-                v-model="item.max_mA"
-                label="Miliamperios Máximos"
-                hint = "Miliamperios máximos al que se limitará el canal"
-                type="number"
-                suffix="mA"
-                persistent-hint
-                required
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col cols="12">
-            <v-text-field
-                v-model="item.min_mA"
-                label="Miliamperios Mínimos"
-                hint = "Miliamperios mínimos al que se limitará el canal"
-                type="number"
-                suffix="mA"
-                persistent-hint
-                required
-            ></v-text-field>
-          </v-col>
-        </v-row>
-        <v-row>
           <v-col cols="12" class="py-0">
             <v-row>
               <v-subheader>Config. Color</v-subheader>

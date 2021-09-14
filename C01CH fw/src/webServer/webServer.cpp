@@ -28,7 +28,7 @@
 #include "wifi/WiFi.h"
 #include "statusLedControl/statusLedControl.h"
 #include "channel/ScheduleMgt.h"
-#include "channel/channel.h"
+#include "channel/channelMgt.h"
 #include "EEPROMHelper.h"
 #include "Update.h"
 #include "fan/fanControl.h"
@@ -63,6 +63,8 @@ DomDomWebServerClass::DomDomWebServerClass(){}
 
 void DomDomWebServerClass::begin()
 {
+    DomDomWebServer.lastRequest = millis();
+
     DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"WEBSERVER", "Inciando servidor...");
     _server = new AsyncWebServer (WEBSERVER_HTTP_PORT);
 
@@ -114,6 +116,8 @@ void DomDomWebServerClass::begin()
      _server->on("/update", HTTP_POST, [&](AsyncWebServerRequest *request) {
         // the request handler is triggered after the upload has finished... 
         // create the response, add header, and send response
+        DomDomWebServer.lastRequest = millis();
+
         AsyncWebServerResponse *response = request->beginResponse((Update.hasError())?500:200, "text/plain", (Update.hasError())?"FAIL":"OK");
         response->addHeader("Access-Control-Allow-Methods", "GET, POST");
         response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -121,7 +125,7 @@ void DomDomWebServerClass::begin()
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
         
-        DomDomChannel.end();
+        DomDomChannelMgt.end();
 
         delay(2000);
         
@@ -178,6 +182,7 @@ void DomDomWebServerClass::begin()
 
 void DomDomWebServerClass::getRTCData(AsyncWebServerRequest *request)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
 
     StaticJsonDocument<1024> jsonDoc;
@@ -195,6 +200,7 @@ void DomDomWebServerClass::getRTCData(AsyncWebServerRequest *request)
 
 void DomDomWebServerClass::setRTCData(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -248,6 +254,7 @@ void DomDomWebServerClass::setRTCData(AsyncWebServerRequest * request, uint8_t *
 
 void DomDomWebServerClass::getWifiData(AsyncWebServerRequest *request)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
         
     StaticJsonDocument<1024> jsonDoc;
@@ -280,6 +287,7 @@ void DomDomWebServerClass::getWifiData(AsyncWebServerRequest *request)
 
 void DomDomWebServerClass::setWifiData(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -319,6 +327,7 @@ void DomDomWebServerClass::setWifiData(AsyncWebServerRequest * request, uint8_t 
 
 void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
         
     StaticJsonDocument<2048> jsonDoc;
@@ -335,35 +344,39 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
     
     JsonArray ports = jsonDoc.createNestedArray("canales");
 
-    JsonObject obj = ports.createNestedObject();
-    obj["enabled"] = DomDomChannel.getEnabled();
-    obj["channel_num"] = DomDomChannel.getNum();
-    obj["target_mA"] = DomDomChannel.target_mA;
-    obj["max_mA"] = DomDomChannel.maximum_mA;
-    obj["min_mA"] = DomDomChannel.minimum_mA;
-    obj["max_volts"] = DomDomChannel.maximum_V;
-    obj["dac_pwm"] = DomDomChannel.curr_dac_pwm;
-    obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
-
-    String str_lvolts = String(DomDomChannel.lastBusVoltaje_V,2);
-    String str_lamps = String(DomDomChannel.lastBusCurrent_mA,3);
-    String str_pamps = String(DomDomChannel.busCurrentPeak_mA,3);
-    String str_pvolts = String(DomDomChannel.busVoltagePeak_V,2);
-    String str_ppower = String(DomDomChannel.busPowerPeak_W,2);
-
-    obj["bus_volts"] = serialized(str_lvolts);
-    obj["bus_miliamps"] = serialized(str_lamps);
-    obj["bus_volts_peak"] = serialized(str_pvolts);
-    obj["bus_miliamps_peak"] = serialized(str_pamps);
-    obj["bus_power_peak"] = serialized(str_ppower);
-    
-    JsonArray leds = obj.createNestedArray("leds");
-    for (int j = 0; j < DomDomChannel.leds.size(); j++)
+    for(int i = 0; i < DomDomChannelMgt.channels.size(); i++)
     {
-        JsonObject led = leds.createNestedObject();
-        led["K"] = DomDomChannel.leds[j]->K;
-        led["nm"] = DomDomChannel.leds[j]->nm;
-        led["W"] = DomDomChannel.leds[j]->W;
+        DomDomChannelClass * channel = DomDomChannelMgt.channels[i];
+
+        JsonObject obj = ports.createNestedObject();
+        obj["enabled"] = channel->getEnabled();
+        obj["channel_num"] = channel->getNum();
+        obj["pwm_value"] = channel->getPWM();
+        obj["pwm_resolution"] = channel->getPWMResolution();
+        obj["pwm_min"] = channel->getMinPWM();
+        obj["pwm_max"] = channel->getMaxPWM();
+        obj["max_leds"] = CHANNEL_MAX_LEDS_CONFIG;
+
+        String str_lvolts = String(channel->lastBusVoltaje_V,2);
+        String str_lamps = String(channel->lastBusCurrent_mA,3);
+        String str_pamps = String(channel->busCurrentPeak_mA,3);
+        String str_pvolts = String(channel->busVoltagePeak_V,2);
+        String str_ppower = String(channel->busPowerPeak_W,2);
+
+        obj["bus_volts"] = serialized(str_lvolts);
+        obj["bus_miliamps"] = serialized(str_lamps);
+        obj["bus_volts_peak"] = serialized(str_pvolts);
+        obj["bus_miliamps_peak"] = serialized(str_pamps);
+        obj["bus_power_peak"] = serialized(str_ppower);
+        
+        JsonArray leds = obj.createNestedArray("leds");
+        for (int j = 0; j < channel->leds.size(); j++)
+        {
+            JsonObject led = leds.createNestedObject();
+            led["K"] = channel->leds[j]->K;
+            led["nm"] = channel->leds[j]->nm;
+            led["W"] = channel->leds[j]->W;
+        }
     }
 
     serializeJson(jsonDoc, *response);
@@ -373,6 +386,7 @@ void DomDomWebServerClass::getChannelsData(AsyncWebServerRequest *request)
 
 void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(2048);;
@@ -389,13 +403,11 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
         {
             Serial.printf("[Schedule] Programacion iniciada.\n");
             DomDomScheduleMgt.begin();
-            Serial.println("2");
         }
         else
         {
             Serial.printf("[Schedule] Programacion parada.\n");
             DomDomScheduleMgt.end();
-            Serial.println("3");
         }
 
         DomDomScheduleMgt.save();
@@ -404,22 +416,21 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
     if (doc.containsKey("canales"))
     {
         JsonArray canales = doc["canales"].as<JsonArray>();
+        int index = 0;
         for(JsonObject canal : canales)
         {
-            DomDomChannel.setEnabled(canal["enabled"]);
-            DomDomChannel.maximum_V = canal["max_volts"];
-            DomDomChannel.maximum_mA = canal["max_mA"];
-            DomDomChannel.minimum_mA = canal["min_mA"];
+            DomDomChannelClass * channel = DomDomChannelMgt.channels[index];
+            channel->setEnabled(canal["enabled"]);
 
             if (!DomDomScheduleMgt.isStarted())
             {
                 // DomDomStatusLedControl.blink(1);
-                DomDomChannel.setTargetmA(canal["target_mA"]);
+                channel->setPWM(canal["pwm_value"], true);
             }
 
             if (canal.containsKey("leds"))
             {
-                DomDomChannel.leds.clear();
+                channel->leds.clear();
                 JsonArray leds = canal["leds"].as<JsonArray>();
                 for(JsonObject led : leds)
                 {
@@ -430,13 +441,15 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
                     
                     if (obj->K > 0 || obj->nm > 0 || obj->W > 0)
                     {
-                        DomDomChannel.leds.push_back(obj);
+                        channel->leds.push_back(obj);
                     }
                     
                 }
             }
 
-            DomDomChannel.save();
+            channel->saveConfig();
+
+            index++;
         }
 
     }
@@ -446,6 +459,7 @@ void DomDomWebServerClass::setChannelsData(AsyncWebServerRequest * request, uint
 
 void DomDomWebServerClass::setRestart(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -476,6 +490,7 @@ void DomDomWebServerClass::setRestart(AsyncWebServerRequest * request, uint8_t *
 
 void DomDomWebServerClass::setResetMaxValues(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -493,12 +508,15 @@ void DomDomWebServerClass::setResetMaxValues(AsyncWebServerRequest * request, ui
     {
         if (doc["reset"])
         {
-            
-            DomDomChannel.busPowerPeak_W = 0;
-            DomDomChannel.busCurrentPeak_mA = 0;
-            DomDomChannel.busVoltagePeak_V = 0;
+            for(int i = 0; i < DomDomChannelMgt.channels.size(); i++)
+            {
+                DomDomChannelClass * channel = DomDomChannelMgt.channels[i];
+                channel->busPowerPeak_W = 0;
+                channel->busCurrentPeak_mA = 0;
+                channel->busVoltagePeak_V = 0;
 
-            request->send(response);
+                request->send(response);
+            }
         }
     }
 
@@ -507,6 +525,7 @@ void DomDomWebServerClass::setResetMaxValues(AsyncWebServerRequest * request, ui
 
 void DomDomWebServerClass::setFactorySettings(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -536,6 +555,7 @@ void DomDomWebServerClass::setFactorySettings(AsyncWebServerRequest * request, u
 
 void DomDomWebServerClass::getSchedule(AsyncWebServerRequest *request)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
         
     DynamicJsonDocument jsonDoc(6000);
@@ -562,6 +582,7 @@ void DomDomWebServerClass::getSchedule(AsyncWebServerRequest *request)
 
 void DomDomWebServerClass::setSchedule(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(6000);
@@ -590,6 +611,7 @@ void DomDomWebServerClass::setSchedule(AsyncWebServerRequest * request, uint8_t 
 
 void DomDomWebServerClass::setTest(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(2048);;
@@ -618,6 +640,7 @@ void DomDomWebServerClass::setTest(AsyncWebServerRequest * request, uint8_t *dat
 
 void DomDomWebServerClass::getFanSettings(AsyncWebServerRequest *request)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
         
     StaticJsonDocument<1024> jsonDoc;
@@ -636,6 +659,7 @@ void DomDomWebServerClass::getFanSettings(AsyncWebServerRequest *request)
 
 void DomDomWebServerClass::setFanSettings(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
      String bodyContent = GetBodyContent(data, len);
     
     DynamicJsonDocument doc(1024);;
@@ -682,6 +706,7 @@ void DomDomWebServerClass::setFanSettings(AsyncWebServerRequest * request, uint8
 
 void DomDomWebServerClass::getLog(AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total)
 {
+    DomDomWebServer.lastRequest = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
 
     String bodyContent = GetBodyContent(data, len);

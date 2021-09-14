@@ -39,6 +39,10 @@ class DomDomWebServerClass
          * Constructor
          */
         DomDomWebServerClass();
+        /** 
+         * Marca de tiempo de ultima peticion
+         */
+        unsigned long lastRequest = 0;
         /**
          * Inicia el servidor web.
          */

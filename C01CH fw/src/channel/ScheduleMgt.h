@@ -59,7 +59,7 @@ class DomDomScheduleMgtClass
         /**
          * Devuelve el valor proporcional entre @prevValue y @nextValue en base a @anterior y @siguiente.
          */
-        int calcFadeValue(int prevValue, int nextValue, int min_value, int max_value, DateTime anterior, DateTime siguiente);
+        int calcFadeValue(int prevValue, int nextValue, DateTime anterior, DateTime siguiente);
 
     public:
         /**

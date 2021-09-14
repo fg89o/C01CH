@@ -21,6 +21,7 @@
 #ifndef DOMDOM_WIFICLASS_h
 #define DOMDOM_WIFICLASS_h
 #include <Arduino.h>
+#include <esp_wifi_types.h>
 
 /**
  * Clase encargada de la conexion Wifi, tanto STA como AP.
@@ -91,7 +92,11 @@ class DomDomWifiClass
          * Devuelve un entero que corresponde con el modo configurado 
          * en el equipo (AP, STA).
          */
-        int getMode();
+        wifi_mode_t getMode();
+        /**
+         * Devuelve el numero de clientes conectados cuando el equipo esta en modo AP
+         */
+        uint8_t getAPClients();
         /**
          * Valor con la potencia de la señal Wifi a la que se+
          * esta conectado. Solamente valido para conexiones STA.

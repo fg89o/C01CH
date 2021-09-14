@@ -199,9 +199,9 @@ export default {
 
         if (self.porcentaje[i] != self.canales[i].porcentaje)
         {
-          var rango = self.canales[i].max_mA - self.canales[i].min_mA;
-          var valor = self.canales[i].min_mA + (rango * self.porcentaje[i] / 100);
-          self.canales[i].target_mA = valor;
+          var rango = self.canales[i].pwm_max - self.canales[i].pwm_min;
+          var valor = self.canales[i].pwm_min + (rango * self.porcentaje[i] / 100);
+          self.canales[i].pwm_value = valor;
 
           self.canales[i].porcentaje = self.porcentaje[i];
           tmpCanales.push(self.canales[i]);
@@ -241,8 +241,8 @@ export default {
 
         for (var i = 0; i < self.canales.length; i++)
         {
-          var rango = self.canales[i].max_mA - self.canales[i].min_mA;
-          var valor = self.canales[i].target_mA - self.canales[i].min_mA;
+          var rango = self.canales[i].pwm_max - self.canales[i].pwm_min;
+          var valor = self.canales[i].pwm_value - self.canales[i].pwm_min;
 
           self.canales[i].porcentaje = Math.round(valor * 100 / rango);
 
@@ -409,7 +409,13 @@ export default {
     }
     this.createChart('espectro-chart', obj);
 
-    var gradient = ctx.createLinearGradient(0, 0, parseInt(canvas.style.width, 10), 0);
+    let width = parseInt(canvas.style.width, 10)
+    if (isNaN(width))
+    {
+      width = 0;
+    }
+
+    var gradient = ctx.createLinearGradient(0, 0, width, 0);
     gradient.addColorStop(0, 'black');
     gradient.addColorStop(.1, 'blue');
     gradient.addColorStop(.3, 'blue');

@@ -81,29 +81,29 @@ void DomDomFanControlClass::fanTask(void * parameter)
 
 void DomDomFanControlClass::update()
 {
-    if (DomDomChannel.started())
-    {
-        int rango_canal = DomDomChannel.maximum_mA - DomDomChannel.minimum_mA;
-        int valor_canal = DomDomChannel.target_mA - DomDomChannel.minimum_mA;
-        int porcentaje_canal = valor_canal * 100 / rango_canal;
+    // if (DomDomChannel.started())
+    // {
+    //     int rango_canal = DomDomChannel.getMaxPWM() - DomDomChannel.getMinPWM();
+    //     int valor_canal = DomDomChannel.getPWM() - DomDomChannel.getMinPWM();
+    //     int porcentaje_canal = valor_canal * 100 / rango_canal;
 
-        int rango_fan = max_channel_value - min_channel_value;
-        int valor_fan = porcentaje_canal - min_channel_value;
-        int porcentaje_fan = valor_fan * 100 / rango_fan;
+    //     int rango_fan = max_channel_value - min_channel_value;
+    //     int valor_fan = porcentaje_canal - min_channel_value;
+    //     int porcentaje_fan = valor_fan * 100 / rango_fan;
 
-        potencia = porcentaje_fan;
+    //     potencia = porcentaje_fan;
 
-        int new_pwm = (max_pwm - min_pwm) * (porcentaje_fan / 100);
-        if (new_pwm != curr_pwm)
-        {
-            Serial.printf("[FAN] Nuevo PWM: %d\r\n", new_pwm);
-            setCurrentPWM(new_pwm);
-        }
-    }
-    else
-    {
-       setCurrentPWM(min_pwm); 
-    }
+    //     int new_pwm = (max_pwm - min_pwm) * (porcentaje_fan / 100);
+    //     if (new_pwm != curr_pwm)
+    //     {
+    //         Serial.printf("[FAN] Nuevo PWM: %d\r\n", new_pwm);
+    //         setCurrentPWM(new_pwm);
+    //     }
+    // }
+    // else
+    // {
+    //    setCurrentPWM(min_pwm); 
+    // }
     
     
 }

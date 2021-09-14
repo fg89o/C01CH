@@ -7,7 +7,7 @@
 #define DEBUG
 
 // Datos del proyecto
-#define PROJECT_VER     1.1
+#define PROJECT_VER     2.0
 #define PROJECT_MODEL   "C01CH"
 
 //===========================================================================
@@ -30,10 +30,10 @@
 //===========================================================================
 
 // Define la red wifi a la que intetara conectase por defecto
-#define WIFI_STA_SSID_NAME "" 
+#define WIFI_STA_SSID_NAME "iPhone de Oscar" 
 
 // Define el password de la red wifi por defecto
-#define WIFI_STA_PASSWORD ""
+#define WIFI_STA_PASSWORD "granada20"
 
 // Numero de intentos para conectar el wifi
 #define WIFI_NUM_RETRIES 3
@@ -41,8 +41,11 @@
 // Tiempo de espera entre intentos
 #define WIFI_CONNECTION_LATENCY 5000
 
+// Tiempo en ms entre cada intento de reconexion al WIFI
+#define WIFI_RECONNECTION_PERIOD 120000
+
 // Nombre del AP que se creara para conectarse al equipo (32 digitos max.)
-#define WIFI_AP_SSID_NAME "C01CH"
+#define WIFI_AP_SSID_NAME "C01CH-2"
 
 // Contraseña para el AP (entre 8 y 63 max.)
 #define WIFI_AP_PASSWORD ""
@@ -70,16 +73,17 @@
 //===========================================================================
 
 #define CHANNEL_SIZE                    1
-#define CHANNEL_RESOLUTION              8
+#define CHANNEL_RESOLUTION              { 12 }// { 12, 12, 12, 12 }
+#define CHANNEL_PWM_PINS                { 17 } // { 17, 16 , 5, 4 }
+#define CHANNEL_INA_ADDRESS             { 0x40 } // { 0x40, 0x41, 0x44, 0x45 }
 #define CHANNEL_MAX_LEDS_CONFIG         10
-#define CHANNEL_CURRENT_PIN             { 25 }
-#define CHANNEL_BUS_REFRESH_INTERVAL    10000
+#define CHANNEL_BUS_REFRESH_INTERVAL    1000
 #define CHANNEL_PERCENTAGE_MIN_STEP     5
 
 //===========================================================================
 //============================ FAN SECTION =============================
 //===========================================================================
-#define FAN_PWM_PIN                     17
+#define FAN_PWM_PIN                     16
 #define FAN_PWM_RESOLUTION              10
 #define FAN_PWM_CHANNEL                 12
 
@@ -111,7 +115,7 @@
 #define EEPROM_STA_PASSWORD_LENGTH              64
 
 #define EEPROM_CHANNEL_FIRST_ADDRESS            EEPROM_STA_PASSWORD_ADDRESS +  EEPROM_STA_PASSWORD_LENGTH
-#define EEPROM_CHANNEL_MEMORY_SIZE              16
+#define EEPROM_CHANNEL_MEMORY_SIZE              5
 #define EEPROM_CHANNEL_LED_MEMORY_SIZE          7
 #define EEPROM_CHANNEL_LED_COUNT                10
 

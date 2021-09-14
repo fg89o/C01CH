@@ -159,12 +159,26 @@ bool DomDomWifiClass::beginmDNS()
 }
 
 bool DomDomWifiClass::isConnected(){
+    if (getMode() == 1)
+    {
+        return (WiFi.status() == WL_CONNECTED);
+    }
+
     return _connected;
 }
 
-int DomDomWifiClass::getMode()
+wifi_mode_t DomDomWifiClass::getMode()
 {
     return WiFi.getMode();
+}
+
+uint8_t DomDomWifiClass::getAPClients()
+{
+    if ( getMode() == WIFI_MODE_STA ){
+        return 0;
+    }
+
+    return WiFi.softAPgetStationNum();
 }
 
 int8_t DomDomWifiClass::RSSI()

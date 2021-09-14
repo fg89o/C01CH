@@ -29,33 +29,37 @@
 
 //#include "zones.h"
 
-DomDomRTCClass::DomDomRTCClass(){}
+DomDomRTCClass::DomDomRTCClass(){
+    _ntpStarted = false;
+}
 
 bool DomDomRTCClass::begin()
 {
-    DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...");
-    ready = false;
+    if (!_ntpStarted)
+    {
+        ready = false;
+        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...");
     
-    timeClient = new NTPClient(_ntpUDP, _ntpServerName.c_str(), 0, 0);
-    timeClient->begin();
+        timeClient = new NTPClient(_ntpUDP, _ntpServerName.c_str(), 0, 0);
+        timeClient->begin();
 
-    if (DomDomWifi.getMode() == 1)
-    {
-        ready = updateFromNTP();
-        beginNTP();
-    }else
-    {
-        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Conexión WIFI no disponible");
+        if (DomDomWifi.getMode() == WIFI_MODE_STA)
+        {
+            ready = updateFromNTP();
+            beginNTP();
+        }else
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Conexión WIFI no disponible");
+        }
+        
+        if (ready)
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...OK!");
+        }else
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Inicializando RTC...ERROR!");
+        }
     }
-    
-    if (ready)
-    {
-        DomDomLogger.log(DomDomLoggerClass::LogLevel::info, "RTC", "Inicializando RTC...OK!");
-    }else
-    {
-        DomDomLogger.log(DomDomLoggerClass::LogLevel::error, "RTC", "Inicializando RTC...ERROR!");
-    }
-    
 
     return ready;
 }
@@ -63,15 +67,14 @@ bool DomDomRTCClass::begin()
 bool DomDomRTCClass::updateFromNTP()
 {
     bool result = false;
-    if (DomDomWifi.getMode() == 1)
+    LastNTPCheck = millis();
+    if (DomDomWifi.getMode() == WIFI_MODE_STA && DomDomWifi.isConnected())
     {
-        LastNTPCheck = millis();
         result = timeClient->forceUpdate();
         if (result)
         {
             DomDomLogger.log(DomDomLoggerClass::LogLevel::debug, "RTC", "NTP recibido: %d", timeClient->getEpochTime());
             adjust(timeClient->getEpochTime());
-            LastNTPCheck = millis();
         }
     }
     
@@ -106,20 +109,16 @@ void DomDomRTCClass::endNTP()
 
 void DomDomRTCClass::NTPTask(void * parameter)
 {
-    int ms = NTP_DELAY_ON_SUCCESS;
     while(DomDomRTC.NTPStarted())
     {
-        if (millis() - DomDomRTC.LastNTPCheck >= ms)
+        if (DomDomRTC.updateFromNTP())
         {
-            if (DomDomRTC.updateFromNTP())
-            {
-                ms = NTP_DELAY_ON_SUCCESS;
-            }
-            else
-            {
-                ms = NTP_DELAY_ON_FAILURE;
-                DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"RTC", "No se recibio respuesta del NTP");
-            }
+            vTaskDelay(NTP_DELAY_ON_SUCCESS / portTICK_PERIOD_MS);
+        }
+        else
+        {
+            DomDomLogger.log(DomDomLoggerClass::LogLevel::error,"RTC", "No se recibio respuesta del NTP");
+            vTaskDelay(NTP_DELAY_ON_FAILURE / portTICK_PERIOD_MS);
         }
     }
 

@@ -21,7 +21,7 @@
 #include "ScheduleMgt.h"
 #include <EEPROM.h>
 #include "configuration.h"
-#include "channel.h"
+#include "channelMgt.h"
 #include "../log/logger.h"
 
 DomDomScheduleMgtClass::DomDomScheduleMgtClass(/* args */)
@@ -230,7 +230,10 @@ bool DomDomScheduleMgtClass::begin()
         {
             // Si no hay puntos de programación ponemos el valor al 100%
             DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "No hay puntos de programacion. Cambiado a modo manual.");
-            DomDomChannel.setTargetmA(DomDomChannel.maximum_mA);
+            for(int i = 0; i < DomDomChannelMgt.channels.size(); i++)
+            {
+                DomDomChannelMgt.channels[i]->setPWM(0);
+            }
         }
         
         DomDomLogger.log(DomDomLoggerClass::LogLevel::info,"SCHEDULE", "Iniciando programación...OK!");
@@ -276,7 +279,7 @@ void DomDomScheduleMgtClass::update()
 
     DomDomLogger.log(DomDomLoggerClass::LogLevel::debug,"SCHEDULE", "intervalo obtenido: %d:%d - %d:%d", puntoAnterior->hour, puntoAnterior->minute, puntoSiguiente->hour, puntoSiguiente->minute);
 
-    int mA = 0;
+    uint16_t pwm = 0;
     int porcentaje = 0;
 
     if (!puntoSiguiente->fade || puntoAnterior->value == puntoSiguiente->value)
@@ -287,18 +290,18 @@ void DomDomScheduleMgtClass::update()
     {
         porcentaje = calcFadeValue(puntoAnterior->value, 
                                 puntoSiguiente->value,
-                                DomDomChannel.minimum_mA,
-                                DomDomChannel.maximum_mA,
                                 horaAnterior,
                                 horaSiguiente);
         porcentaje = roundUp(porcentaje, CHANNEL_PERCENTAGE_MIN_STEP);
     }
 
-    mA = DomDomChannel.minimum_mA + ((DomDomChannel.maximum_mA - DomDomChannel.minimum_mA) * (double)(porcentaje/100.0f));
-
-    if (mA != DomDomChannel.target_mA)
+    for(int i = 0; i < DomDomChannelMgt.channels.size(); i++)
     {
-        DomDomChannel.setTargetmA(mA);
+        pwm = DomDomChannelMgt.channels[i]->getMinPWM() + ((DomDomChannelMgt.channels[i]->getMaxPWM() - DomDomChannelMgt.channels[i]->getMinPWM()) * (double)(porcentaje/100.0f));
+        if (pwm != DomDomChannelMgt.channels[i]->getPWM())
+        {
+            DomDomChannelMgt.channels[i]->setPWM(pwm);
+        }
     }
 }
 
@@ -315,7 +318,7 @@ void DomDomScheduleMgtClass::scheduleTask(void *parameter)
     vTaskDelete(NULL);
 }
 
-int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_value, int max_value, DateTime anterior, DateTime siguiente)
+int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, DateTime anterior, DateTime siguiente)
 {
     int porcentaje_result = 0;
     int minutes_total = (siguiente - anterior).totalseconds() / 60;
@@ -338,7 +341,6 @@ int DomDomScheduleMgtClass::calcFadeValue(int prevValue, int nextValue, int min_
         int porcentaje_valor = (nextValue - prevValue) * minutes_porcentaje;
 
         porcentaje_result = prevValue + porcentaje_valor;
-        //int new_pwm = min_value + (max_value - min_value) * ((prevValue + porcentaje_valor) / double(100));
     }   
 
     return porcentaje_result;
@@ -353,9 +355,9 @@ void DomDomScheduleMgtClass::startTest(uint16_t value)
     }
 
     _testInProgress = true;
-    end();
+    DomDomChannelMgt.channels[0]->end();
 
-    DomDomChannel.setTargetmA(value);
+    DomDomChannelMgt.channels[0]->setPWM(value);
 
     xTaskCreate(
         this->testTask,     /* Task function. */
